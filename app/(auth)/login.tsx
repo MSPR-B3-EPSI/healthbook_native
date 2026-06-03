@@ -1,13 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link } from 'expo-router';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, Text, TextInput, View } from 'react-native';
-import { Button, Screen, TextField } from '../../src/components';
-import { loginSchema, LoginValues } from '../../src/features/auth/schemas';
+import { Linking, Pressable, Text, TextInput, View } from 'react-native';
+import { Button, Screen, TextField } from '@/components';
+import { keycloakRegisterUrl } from '@/config/env';
+import { useAuth } from '@/features/auth/AuthProvider';
+import { AuthError } from '@/features/auth/keycloak';
+import { loginSchema, LoginValues } from '@/features/auth/schemas';
 
 export default function LoginScreen() {
   const passwordRef = useRef<TextInput>(null);
+  const { login } = useAuth();
+  const [formError, setFormError] = useState<string | null>(null);
 
   const {
     control,
@@ -15,14 +19,23 @@ export default function LoginScreen() {
     formState: { errors, isSubmitting },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { identifier: '', password: '' },
     mode: 'onTouched',
   });
 
   const onSubmit = async (values: LoginValues) => {
-    // TODO: brancher l'API d'auth (POST /login)
-    await new Promise((r) => setTimeout(r, 600));
-    Alert.alert('Connexion', `Bienvenue ${values.email}`);
+    setFormError(null);
+    try {
+      await login(values.identifier.trim(), values.password);
+    } catch (err) {
+      if (err instanceof AuthError && err.code === 'invalid_credentials') {
+        setFormError('Identifiants invalides.');
+      } else if (err instanceof AuthError && err.code === 'network') {
+        setFormError('Connexion au serveur impossible.');
+      } else {
+        setFormError('Erreur inattendue. Réessaie.');
+      }
+    }
   };
 
   return (
@@ -39,20 +52,19 @@ export default function LoginScreen() {
       <View className="gap-1">
         <Controller
           control={control}
-          name="email"
+          name="identifier"
           render={({ field: { onChange, onBlur, value } }) => (
             <TextField
-              label="Email"
-              placeholder="ton@email.com"
+              label="Identifiant ou email"
+              placeholder="user-freemium"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
-              error={errors.email?.message}
-              keyboardType="email-address"
+              error={errors.identifier?.message}
               autoCapitalize="none"
-              autoComplete="email"
+              autoComplete="username"
               autoCorrect={false}
-              textContentType="emailAddress"
+              textContentType="username"
               returnKeyType="next"
               onSubmitEditing={() => passwordRef.current?.focus()}
               blurOnSubmit={false}
@@ -82,6 +94,10 @@ export default function LoginScreen() {
           )}
         />
 
+        {formError ? (
+          <Text className="text-sm text-danger mb-2">{formError}</Text>
+        ) : null}
+
         <Button
           label="Se connecter"
           onPress={handleSubmit(onSubmit)}
@@ -93,11 +109,14 @@ export default function LoginScreen() {
         <Text className="text-base text-text-secondary">
           Pas encore de compte ?
         </Text>
-        <Link href="/(auth)/register" asChild>
+        <Pressable
+          accessibilityRole="link"
+          onPress={() => Linking.openURL(keycloakRegisterUrl)}
+        >
           <Text className="text-base font-semibold text-primary">
-            S’inscrire
+            Créer un compte
           </Text>
-        </Link>
+        </Pressable>
       </View>
     </Screen>
   );
