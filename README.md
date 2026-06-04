@@ -1,8 +1,25 @@
-# Healthbook
+# Healthbook — App mobile
 
-Application mobile Healthbook + backend (Keycloak + API NestJS + Postgres + NGINX).
+Application mobile du projet Healthbook (MSPR). Front **Expo / React Native** qui parle à un backend local (**Keycloak + API NestJS + Postgres**) exposé derrière une **gateway NGINX**.
 
-Stack mobile : Expo SDK 54 · React Native 0.81 · NativeWind · React Hook Form + Zod · expo-secure-store.
+**Stack mobile** : Expo SDK 54 · React Native 0.81 · expo-router 6 · NativeWind · React Hook Form + Zod · expo-secure-store.
+
+---
+
+## 🏗 Architecture (repos côte à côte)
+
+Le mobile **ne fonctionne pas seul** : il a besoin du backend qui tourne en local. Les repos doivent être clonés **dans le même dossier parent** (le backend monte le code des API par chemin relatif `../../`) :
+
+```
+healthbook/
+├── healthbook_native/   ← CE repo (le mobile)
+├── healthai-infra/      ← REQUIS — Docker Compose (NGINX + Keycloak + Postgres)
+├── healthbook-api/      ← REQUIS — API NestJS (montée dans un container par healthai-infra)
+├── tracking-api/        ← optionnel (sinon son container reste rouge, sans impact)
+└── data-recommendation-api/  ← optionnel (idem)
+```
+
+> Sans `healthbook-api` cloné à côté, le container de l'API démarre sur un dossier vide et plante. `tracking-api` / `data-recommendation-api` peuvent manquer, on les ignore.
 
 ---
 
@@ -10,137 +27,120 @@ Stack mobile : Expo SDK 54 · React Native 0.81 · NativeWind · React Hook Form
 
 - **Node.js 20.19+** et **npm 10+**
 - **Docker Desktop** (Windows / macOS) ou **Docker Engine + Compose** (Linux)
-- L'app **Expo Go** sur ton téléphone, ou un émulateur Android Studio / simulateur iOS
-- Les deux repos clonés **côte à côte** :
-  ```
-  healthbook/
-  ├── healthai-infra/      ← le backend (Keycloak + API + gateway)
-  └── healthbook_native/   ← ce repo (le mobile)
-  ```
+- L'app **Expo Go** sur ton téléphone, **ou** un émulateur Android Studio / simulateur iOS
+- Téléphone et PC sur le **même réseau Wi-Fi**
 
 ---
 
-## 🚀 Setup en 4 étapes
+## 🚀 Démarrage rapide
 
-### Étape 1 — Trouve ton IP LAN
-
-C'est l'IP de ton PC sur ton réseau Wi-Fi. Ton téléphone doit pouvoir l'atteindre.
-
-**Windows (PowerShell)** :
-```powershell
-ipconfig
-```
-Cherche la ligne `Adresse IPv4` de ton interface **Wi-Fi** (ou Ethernet si tu es en filaire). Format typique : `192.168.x.x` ou `10.x.x.x`.
-
-**Linux** :
-```bash
-ip a
-```
-Cherche `inet 192.168.x.x` (ou similaire) sur ton interface Wi-Fi.
-
-**macOS** :
-```bash
-ipconfig getifaddr en0
-```
-
-Pour la suite, on suppose que ton IP est **`192.168.1.42`** (remplace par la tienne).
-
-### Étape 2 — Mets ton IP dans les deux `.env`
-
-> ⚠️ Les deux fichiers doivent contenir **la même IP**.
-
-#### 2.1 Backend → `healthai-infra/.env`
+### 1. Cloner les repos côte à côte
 
 ```bash
-cd healthai-infra
-cp .env.example .env       # première fois uniquement
+mkdir healthbook && cd healthbook
+git clone <url>/healthbook_native.git
+git clone <url>/healthai-infra.git
+git clone <url>/healthbook-api.git
 ```
 
-Ouvre `healthai-infra/.env` et change la ligne `KEYCLOAK_HOSTNAME` :
+### 2. Trouver ton IP LAN
 
+C'est l'IP de ton PC sur le Wi-Fi, que ton téléphone doit pouvoir joindre.
+
+| OS | Commande |
+| --- | --- |
+| **Windows** | `ipconfig` → ligne **Adresse IPv4** de l'interface **Wi-Fi** |
+| **Linux** | `ip a` → `inet 192.168.x.x` sur l'interface Wi-Fi |
+| **macOS** | `ipconfig getifaddr en0` |
+
+> ⚠️ **Prends bien l'IP de ton Wi-Fi/Ethernet réel** (souvent `192.168.x.x` ou `10.x.x.x`).
+> **PAS** les adaptateurs virtuels : VirtualBox (`192.168.56.x`), WSL (`172.x.x.x`) — injoignables depuis le téléphone.
+
+Pour la suite, on suppose **`192.168.1.42`** (remplace par la tienne).
+
+### 3. Configurer les deux fichiers d'env
+
+> 🔑 Les deux fichiers doivent contenir **la même IP**.
+
+**Backend → `healthai-infra/.env`**
+```bash
+cd healthai-infra && cp .env.example .env    # 1ère fois uniquement
+```
+Mets ton IP dans `KEYCLOAK_HOSTNAME` :
 ```diff
 - KEYCLOAK_HOSTNAME=localhost
 + KEYCLOAK_HOSTNAME=192.168.1.42
 ```
+> 💡 **Laisse `KEYCLOAK_ISSUER_EXTERNAL` vide/commenté.** L'issuer de l'API se dérive alors automatiquement de `KEYCLOAK_HOSTNAME` → tu n'as qu'**une** valeur à gérer. Si tu le renseignes en dur, il faudra le changer à chaque fois aussi (piège classique).
 
-#### 2.2 Mobile → `healthbook_native/.env.local`
-
+**Mobile → `healthbook_native/.env.local`**
 ```bash
-cd ../healthbook_native
-cp .env.example .env.local    # première fois uniquement
+cd ../healthbook_native && cp .env.example .env.local    # 1ère fois uniquement
 ```
-
-Ouvre `healthbook_native/.env.local` et mets la même IP :
-
-```
+```ini
 EXPO_PUBLIC_GATEWAY_HOST=192.168.1.42
 EXPO_PUBLIC_GATEWAY_PORT=8080
 ```
+> `.env.local` est gitignoré : ton IP reste chez toi, jamais poussée.
 
-### Étape 3 — Démarre le backend
+### 4. Démarrer le backend
 
 ```bash
 cd ../healthai-infra
 ```
-
-**Linux / macOS / Git Bash** :
+**Linux / macOS / Git Bash :**
 ```bash
 ./scripts/up.sh core services data
 ```
-
-**Windows PowerShell** (copie-colle tel quel, c'est la même commande que le script bash exécute) :
+**Windows PowerShell :**
 ```powershell
 docker compose --project-name healthai --env-file "$PWD\.env" `
-  -f "$PWD\compose\compose.core.yaml" `
-  -f "$PWD\compose\compose.services.yaml" `
-  -f "$PWD\compose\compose.data.yaml" `
+  -f "$PWD\compose\compose.core.yaml" -f "$PWD\compose\compose.services.yaml" -f "$PWD\compose\compose.data.yaml" `
   --profile core --profile services --profile data up -d
 ```
-
-Attends ~1 min que tout finisse de démarrer (Nest doit faire `npm install` + `prisma migrate` à la première fois).
-
-Vérifie que ça répond :
+La 1ʳᵉ fois, l'API fait `npm install` + `prisma migrate` → **compte ~2-3 min** avant qu'elle réponde. Vérifie :
 ```bash
-curl http://localhost:8080/api/status
-# → "Hello unconnected user..."
+curl http://localhost:8080/api/status      # → "Hello unconnected user..."
 ```
 
-### Étape 4 — Lance le mobile
+### 5. Lancer le mobile
 
 ```bash
 cd ../healthbook_native
-npm install                  # première fois uniquement
+npm install        # 1ère fois uniquement
 npm start
 ```
+Puis, dans le terminal Metro :
 
-Puis dans le terminal Metro :
-| Cible              | Action                                   |
-| ------------------ | ---------------------------------------- |
-| Téléphone physique | Scan le QR code avec **Expo Go**. Téléphone + PC sur le **même Wi-Fi**. |
-| Émulateur Android  | Appuie sur `a`                           |
-| Simulateur iOS     | Appuie sur `i` (macOS only)              |
+| Cible | Action |
+| --- | --- |
+| 📱 Téléphone | Scanne le QR code avec **Expo Go** (même Wi-Fi que le PC) |
+| 🤖 Émulateur Android | Touche `a` |
+| 🍏 Simulateur iOS | Touche `i` (macOS) |
 
-Connecte-toi avec un des 3 users seed (créés automatiquement par Keycloak) :
+### 6. Se connecter
 
-| Identifiant         | Mot de passe |
-| ------------------- | ------------ |
-| `user-freemium`     | `password`   |
-| `user-premium`      | `password`   |
-| `user-premium-plus` | `password`   |
+3 comptes seed créés automatiquement par Keycloak :
 
-Ou crée ton compte via le lien **« Créer un compte »** depuis l'écran de login.
+| Identifiant | Mot de passe | Rôle |
+| --- | --- | --- |
+| `user-freemium` | `password` | freemium |
+| `user-premium` | `password` | premium |
+| `user-premium-plus` | `password` | premium-plus |
+
+Ou bouton **« Créer un compte »** (ouvre Keycloak dans le navigateur du téléphone, puis reviens te connecter dans l'app).
 
 ---
 
-## 🔄 Tu changes de réseau (bureau / maison / hotspot) ?
+## 🔄 Tu changes de réseau (maison / école / hotspot) ?
 
-1. Récupère ta nouvelle IP LAN (cf. Étape 1)
-2. Remplace l'IP dans **les deux fichiers** :
-   - `healthai-infra/.env` → `KEYCLOAK_HOSTNAME`
+L'IP de ton PC change → il faut la réaligner partout, sinon `[Keycloak] Network request failed` côté mobile.
+
+1. Récupère ta nouvelle IP LAN (étape 2).
+2. Mets-la à jour dans :
    - `healthbook_native/.env.local` → `EXPO_PUBLIC_GATEWAY_HOST`
-3. **Force-recreate Keycloak + l'API** (sinon ils continuent à utiliser l'ancienne IP) :
-
-   **Linux / macOS / Git Bash** :
+   - `healthai-infra/.env` → `KEYCLOAK_HOSTNAME` *(+ `KEYCLOAK_ISSUER_EXTERNAL` s'il est renseigné en dur — mieux : laisse-le vide)*
+3. **Force-recreate** Keycloak + l'API (`docker start`/`restart` ne relit PAS le `.env`) :
    ```bash
    cd healthai-infra
    docker compose --project-name healthai --env-file .env \
@@ -148,65 +148,87 @@ Ou crée ton compte via le lien **« Créer un compte »** depuis l'écran de lo
      --profile core --profile services --profile data \
      up -d --force-recreate keycloak healthbook-api
    ```
-
-   **Windows PowerShell** :
-   ```powershell
-   cd healthai-infra
-   docker compose --project-name healthai --env-file "$PWD\.env" `
-     -f "$PWD\compose\compose.core.yaml" -f "$PWD\compose\compose.services.yaml" -f "$PWD\compose\compose.data.yaml" `
-     --profile core --profile services --profile data `
-     up -d --force-recreate keycloak healthbook-api
+   *(PowerShell : mêmes flags avec `"$PWD\..."` et backtick `` ` `` en fin de ligne.)*
+4. **Redémarre NGINX** pour qu'il re-résolve les IP des containers recréés (sinon `502 Bad Gateway`) :
+   ```bash
+   docker restart healthai-nginx-1
    ```
-
-4. Côté mobile : **redémarre Metro complètement** (Ctrl+C puis `npm start`).
-
----
-
-## 🧠 Pourquoi tout ce setup ?
-
-Légitime question. En résumé :
-
-- **Pourquoi mon IP LAN dans 2 fichiers ?** Le mobile et le backend tournent dans **2 runtimes différents** (Metro côté mobile, Docker Compose côté backend) qui lisent **2 fichiers d'env distincts**. Il n'y a pas de variable globale partagée.
-
-- **Pourquoi Keycloak a besoin de mon IP LAN ?** Quand ton téléphone parle à Keycloak via `http://192.168.x.x:8080`, Keycloak doit générer ses **propres URLs** (page de login, redirects, claim `iss` du JWT) **avec cette même adresse**. Sinon ton téléphone tombe sur des liens `localhost` qu'il ne peut pas atteindre.
-
-- **Pourquoi l'API doit aussi connaître cette IP ?** L'API valide le claim `iss` du JWT. Si Keycloak l'émet avec `192.168.x.x` mais que l'API attend `localhost`, le token est rejeté (401). Le `KEYCLOAK_ISSUER` de l'API est dérivé automatiquement de `KEYCLOAK_HOSTNAME` (vois `compose/compose.services.yaml`).
-
-- **Pourquoi `--force-recreate` ?** Docker ne re-injecte pas les variables d'env sur un simple `restart`. Pour qu'un changement de `KEYCLOAK_HOSTNAME` prenne effet, il faut recréer les containers.
+5. Côté mobile : **redémarre Metro complètement** (`Ctrl+C` puis `npm start` — le reload `r` ne relit PAS les `EXPO_PUBLIC_*`).
 
 ---
 
-## 🛠 Scripts utiles
+## 🧠 Pourquoi ce setup ?
 
-```bash
-# Mobile
-npm start          # Démarre Metro
-npm run typecheck  # Vérifie les types
-npm run lint       # Lint
-npm run format     # Prettier
+- **Pourquoi mon IP dans 2 fichiers ?** Mobile et backend sont 2 runtimes (Metro / Docker Compose) qui lisent 2 fichiers d'env distincts. Pas de variable partagée.
+- **Pourquoi Keycloak a besoin de l'IP ?** Il génère ses propres URLs (login, redirects, claim `iss` du JWT) avec `KC_HOSTNAME`. Avec `localhost`, le téléphone tomberait sur des liens injoignables.
+- **Pourquoi l'API aussi ?** Elle valide le claim `iss` du JWT contre son `KEYCLOAK_ISSUER`. Celui-ci vaut `KEYCLOAK_ISSUER_EXTERNAL` s'il est défini, **sinon** il est dérivé de `KEYCLOAK_HOSTNAME` (cf. `compose/compose.services.yaml`). D'où le conseil de laisser `KEYCLOAK_ISSUER_EXTERNAL` vide.
+- **Pourquoi `--force-recreate` ?** Docker ne ré-injecte pas les variables d'env sur un simple `restart` : il faut recréer les containers.
 
-# Backend (depuis healthai-infra/, en bash)
-./scripts/up.sh core services data        # Démarrer
-./scripts/down.sh                         # Arrêter (garde les données)
-./scripts/logs.sh healthbook-api          # Voir les logs (Ctrl+C pour quitter)
-./scripts/reset.sh --yes                  # Reset complet (vire toutes les DB)
+---
+
+## 📁 Structure du projet
+
+```
+app/                    Expo Router (file-based routing)
+├── _layout.tsx         RouteGuard (redirige login/app selon l'auth)
+├── (auth)/login.tsx
+└── (app)/              Bottom Tabs (feed, create, account)
+src/
+├── components/         UI génériques (Button, Card, Screen, TextField…)
+├── config/env.ts       Source unique des URLs (résout l'IP/port de la gateway)
+├── features/<domain>/  Code par domaine : api.ts, schemas.ts (Zod), components/
+│   ├── auth/           AuthProvider, keycloak.ts, storage.ts (SecureStore)
+│   └── publications/   Feed + création de posts
+└── lib/http.ts         apiFetch — tous les appels API (Bearer + refresh auto)
 ```
 
-Sous Windows sans Git Bash, utilise les commandes `docker compose` directes
-documentées dans les étapes 3 et « changement de réseau » ci-dessus.
+Conventions : alias `@/` → `src/`, styling via les tokens de `tailwind.config.js`, tous les appels réseau passent par `apiFetch` (jamais `fetch` direct).
 
 ---
 
-## 🐛 Si ça ne marche pas
+## 🛠 Commandes utiles
 
-| Symptôme                                                | Solution                                                                 |
-| ------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `[Keycloak] Erreur réseau` côté mobile                  | Téléphone + PC sur le même Wi-Fi ? IP correcte dans `.env.local` ? Métro redémarré complètement ? |
-| URL `http://[object Object]:8080/...` dans les logs     | `.env.local` mal lu → Ctrl+C dans Metro puis `npm start` (pas juste `r`) |
-| Après login, redirection vers `localhost/...` qui plante | Tu as changé `KEYCLOAK_HOSTNAME` mais pas force-recreate Keycloak (cf. section « Tu changes de réseau ») |
-| `502 Bad Gateway` sur `/api/...`                        | Attends 30–60 s, l'API finit `npm install` + `prisma migrate`            |
-| Port 8080 déjà utilisé (Apache, XAMPP)                  | Arrête le service squatteur, ou change `GATEWAY_PORT=8090` dans `.env`   |
-| Le téléphone ne voit pas Metro                          | Même Wi-Fi, pas de VPN, pas de pare-feu agressif                         |
-| Containers `tracking-api` / `data-recommendation-api` rouges | Tu n'as pas cloné ces repos. Sans impact, ignore-les.                 |
+```bash
+# Mobile (depuis healthbook_native/)
+npm start              # Démarre Metro
+npm start -- --clear   # Idem, en vidant le cache Metro (si erreurs ENOENT fantômes)
+npm run typecheck      # tsc --noEmit
+npm run lint           # eslint
+npm run format         # prettier --write
 
-Pour les détails techniques de l'infra (compose files, profils, etc.), voir [../healthai-infra/README.md](../healthai-infra/README.md).
+# Backend (depuis healthai-infra/, en bash)
+./scripts/up.sh core services data    # Démarrer
+./scripts/down.sh                     # Arrêter (garde les données)
+./scripts/logs.sh healthbook-api      # Logs de l'API (Ctrl+C pour quitter)
+./scripts/reset.sh --yes              # Reset complet (vide toutes les DB)
+```
+
+---
+
+## 🐛 Dépannage
+
+| Symptôme | Solution |
+| --- | --- |
+| `[Keycloak] Network request failed` (mobile) | Même Wi-Fi ? Bonne IP dans `.env.local` ? Metro redémarré (pas juste `r`) ? |
+| `http://[object Object]:8080/...` dans les logs | `.env.local` mal lu → `Ctrl+C` dans Metro puis `npm start` |
+| Après login, redirection vers `localhost` qui plante | `KEYCLOAK_HOSTNAME` changé mais pas de `--force-recreate` (voir « changement de réseau ») |
+| `502 Bad Gateway` sur `/api/...` | L'API n'a pas fini de booter (~2-3 min : npm install + prisma + compil). Sinon `docker restart healthai-nginx-1`. |
+| `500` sur `/api/publication` | Migrations pas appliquées → `docker exec healthai-healthbook-api-1 npx prisma migrate deploy` |
+| Port 8080 déjà utilisé (Apache/XAMPP/EDB) | Arrête le service qui squatte le 8080, ou change `GATEWAY_PORT` dans `.env` (puis réaligne le mobile) |
+| Le téléphone ne voit pas Metro | Même Wi-Fi, pas de VPN, pare-feu non bloquant |
+| Containers `tracking-api` / `data-recommendation-api` rouges | Repos non clonés → sans impact, ignore |
+
+---
+
+## 📦 Build natif (optionnel — avancé)
+
+Le dev quotidien se fait sur **Expo Go** (`npm start`). Un **dev build** natif n'est nécessaire que pour des modules non supportés par Expo Go :
+
+```bash
+npx expo run:android      # nécessite Android Studio ; build long (~5-10 min)
+```
+> La 1ʳᵉ compilation de `react-native-worklets` est lourde (RAM). Sur une machine limitée : ferme Docker/apps pendant le build, ou réduis la parallélisation Gradle (`org.gradle.parallel=false`).
+
+---
+
+Détails techniques de l'infra (compose, profils, realm Keycloak) : voir [`../healthai-infra/README.md`](../healthai-infra/README.md).
