@@ -2,8 +2,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, KeyboardAvoidingView, Platform, Text, TextInput, View } from 'react-native';
-import { Button, Screen, TextField } from '@/components';
+import { Alert, KeyboardAvoidingView, Platform, Text, TextInput } from 'react-native';
+import { Button, Screen, ScreenHeader, TextField } from '@/components';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { createAndPublishPost } from '@/features/publications/api';
 import {
@@ -62,14 +62,10 @@ export default function CreateScreen() {
       className="flex-1"
     >
       <Screen scrollable keyboardShouldPersistTaps="handled">
-        <View className="mt-6 mb-6">
-          <Text className="text-3xl font-bold text-text-primary mb-1">
-            Nouvelle publication
-          </Text>
-          <Text className="text-base text-text-secondary">
-            Partage ce que tu as en tête avec la communauté Healthbook.
-          </Text>
-        </View>
+        <ScreenHeader
+          title="Nouvelle publication"
+          subtitle="Partage ce que tu as en tête avec la communauté Healthbook."
+        />
 
         <Controller
           control={control}

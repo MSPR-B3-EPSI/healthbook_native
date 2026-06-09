@@ -15,12 +15,16 @@ export default function Button({
   disabled = false,
 }: ButtonProps) {
   const isDisabled = disabled || loading;
-  const rootClassName = isDisabled ? 'bg-gray-400' : 'bg-primary';
+  const rootClassName = isDisabled ? 'bg-border' : 'bg-primary';
 
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       className={`mt-4 rounded-xl px-4 py-3 ${rootClassName}`}
+      style={({ pressed }) =>
+        pressed && !isDisabled ? { opacity: 0.85 } : null
+      }
       disabled={isDisabled}
       onPress={onPress}
     >

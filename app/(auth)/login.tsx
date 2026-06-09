@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Linking, Pressable, Text, TextInput, View } from 'react-native';
-import { Button, Screen, TextField } from '@/components';
+import { Button, Screen, ScreenHeader, TextField } from '@/components';
 import { keycloakRegisterUrl } from '@/config/env';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { AuthError } from '@/features/auth/keycloak';
@@ -39,15 +39,11 @@ export default function LoginScreen() {
   };
 
   return (
-    <Screen scrollable>
-      <View className="mt-8 mb-8">
-        <Text className="text-3xl font-bold text-text-primary mb-1">
-          Bon retour
-        </Text>
-        <Text className="text-base text-text-secondary">
-          Connecte-toi pour accéder à ton espace.
-        </Text>
-      </View>
+    <Screen scrollable bottomInset>
+      <ScreenHeader
+        title="Bon retour"
+        subtitle="Connecte-toi pour accéder à ton espace."
+      />
 
       <View className="gap-1">
         <Controller

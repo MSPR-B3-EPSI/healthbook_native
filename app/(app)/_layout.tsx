@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AppTabsLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
@@ -13,7 +16,10 @@ export default function AppTabsLayout() {
           borderTopColor: '#E1E4E8',
           borderTopWidth: 1,
           paddingTop: 6,
-          height: 64,
+          // Le contenu visible reste à 64px ; on ajoute l'inset système (boutons
+          // Android / pill gestuelle) en dessous pour ne pas le recouvrir.
+          height: 64 + insets.bottom,
+          paddingBottom: insets.bottom,
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -25,8 +31,12 @@ export default function AppTabsLayout() {
         name="index"
         options={{
           title: 'Fil',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'home' : 'home-outline'}
+              color={color}
+              size={size}
+            />
           ),
         }}
       />
@@ -34,8 +44,12 @@ export default function AppTabsLayout() {
         name="create"
         options={{
           title: 'Publier',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="add-circle-outline" color={color} size={size + 4} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'add-circle' : 'add-circle-outline'}
+              color={color}
+              size={size + 4}
+            />
           ),
         }}
       />
@@ -43,8 +57,12 @@ export default function AppTabsLayout() {
         name="account"
         options={{
           title: 'Compte',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-circle-outline" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'person-circle' : 'person-circle-outline'}
+              color={color}
+              size={size}
+            />
           ),
         }}
       />

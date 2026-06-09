@@ -9,7 +9,7 @@ type TextFieldProps = {
 
 const TextField = forwardRef<TextInput, TextFieldProps>(
   ({ label, error, className, ...rest }, ref) => {
-    const borderClassName = error ? 'border-red-500' : 'border-gray-300';
+    const borderClassName = error ? 'border-danger' : 'border-border';
 
     return (
       <View className="mb-4">
@@ -21,15 +21,15 @@ const TextField = forwardRef<TextInput, TextFieldProps>(
 
         <TextInput
           ref={ref}
-          className={`rounded-lg border px-4 py-3 text-base text-text-primary ${borderClassName} ${
+          className={`rounded-lg border bg-input px-4 py-3 text-base text-text-primary ${borderClassName} ${
             className ?? ''
           }`}
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor="#9AA0A6"
           {...rest}
         />
 
         {error ? (
-          <Text className="mt-1 text-sm text-red-600">{error}</Text>
+          <Text className="mt-1 text-sm text-danger">{error}</Text>
         ) : null}
       </View>
     );
