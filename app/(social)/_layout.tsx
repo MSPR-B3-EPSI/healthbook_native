@@ -9,7 +9,7 @@ export default function AppTabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#007AFF',
+        tabBarActiveTintColor: '#FC5200',
         tabBarInactiveTintColor: '#9AA0A6',
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
@@ -65,6 +65,12 @@ export default function AppTabsLayout() {
             />
           ),
         }}
+      />
+      {/* Détail d'une publication : route poussée, cachée des onglets et barre
+          masquée (le composer de commentaire occupe le bas de l'écran). */}
+      <Tabs.Screen
+        name="post/[id]"
+        options={{ href: null, tabBarStyle: { display: 'none' } }}
       />
     </Tabs>
   );

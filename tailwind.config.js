@@ -9,6 +9,13 @@ module.exports = {
           DEFAULT: '#007AFF',
           dark: '#0056B3',
         },
+        // Accent coral (Strava) : CTA + engagement (likes). cf. lib/shadows.ts.
+        coral: {
+          DEFAULT: '#FC5200',
+          dark: '#E04800',
+          light: '#FFF1EB',
+        },
+        like: '#FC5200',
         background: '#F5F5F5',
         surface: '#FFFFFF',
         border: {

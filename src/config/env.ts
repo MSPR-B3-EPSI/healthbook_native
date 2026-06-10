@@ -43,6 +43,9 @@ const keycloakClientId =
 
 export const env = {
   apiBaseUrl: `${baseUrl}/api`,
+  // Coach IA (healthai-brain-api) derrière le même gateway NGINX, préfixe /brain.
+  // Même JWT (SSO multi-audience), seul le préfixe de path change vs /api.
+  coachBaseUrl: `${baseUrl}/brain`,
   keycloakBaseUrl: `${baseUrl}/auth`,
   keycloakRealm,
   keycloakClientId,

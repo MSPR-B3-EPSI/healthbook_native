@@ -45,13 +45,16 @@ async function ensureFreshSession(): Promise<StoredSession | null> {
 type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: unknown;
   auth?: boolean;
+  /** Base URL cible. Défaut : l'API réseau social (`/api`). Passer
+   * `env.coachBaseUrl` pour viser le coach IA (`/brain`). */
+  baseUrl?: string;
 };
 
 export async function apiFetch<T = unknown>(
   path: string,
   opts: RequestOptions = {},
 ): Promise<T> {
-  const { auth = true, body, headers, ...rest } = opts;
+  const { auth = true, body, headers, baseUrl = env.apiBaseUrl, ...rest } = opts;
 
   const finalHeaders: Record<string, string> = {
     Accept: 'application/json',
@@ -69,7 +72,7 @@ export async function apiFetch<T = unknown>(
     }
   }
 
-  const url = path.startsWith('http') ? path : `${env.apiBaseUrl}${path}`;
+  const url = path.startsWith('http') ? path : `${baseUrl}${path}`;
   if (__DEV__) {
     console.log('[API] Requête sortante', {
       methode: rest.method ?? 'GET',

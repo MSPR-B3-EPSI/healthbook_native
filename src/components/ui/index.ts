@@ -1,4 +1,9 @@
+export { default as Avatar } from './Avatar';
 export { default as Button } from './Button';
 export { default as Card } from './Card';
 export { default as EmptyState } from './EmptyState';
+export { default as IconButton } from './IconButton';
+export { default as Skeleton } from './Skeleton';
+export { default as SkeletonPostCard } from './SkeletonPostCard';
+export { default as StatPill } from './StatPill';
 export { default as TextField } from './TextField';

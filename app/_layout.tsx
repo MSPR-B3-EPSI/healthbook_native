@@ -17,12 +17,13 @@ function RouteGuard() {
     if (status === 'loading') return;
     const root = segments[0] as string | undefined;
     const inAuthGroup = root === '(auth)';
-    const inAppGroup = root === '(app)';
     const atRoot = root === undefined;
 
+    // Connecté → on atterrit sur le hub (choix d'univers), pas directement sur
+    // un univers. Déconnecté → login, sauf si déjà sur un écran (auth).
     if (status === 'authenticated' && (inAuthGroup || atRoot)) {
-      router.replace('/(app)');
-    } else if (status === 'unauthenticated' && (inAppGroup || atRoot)) {
+      router.replace('/(hub)');
+    } else if (status === 'unauthenticated' && !inAuthGroup) {
       router.replace('/(auth)/login');
     }
   }, [status, segments, router]);
