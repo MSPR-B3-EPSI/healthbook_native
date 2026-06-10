@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Tabs, type ErrorBoundaryProps } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { UniverseErrorBoundary } from '@/components/UniverseErrorBoundary';
 
 export default function AppTabsLayout() {
   const insets = useSafeAreaInsets();
@@ -74,4 +75,10 @@ export default function AppTabsLayout() {
       />
     </Tabs>
   );
+}
+
+// Isole HealthBook : un crash d'un écran social est attrapé ici, sans démonter
+// le hub ni HealthAI (chaque groupe a son propre <Try> côté expo-router).
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  return <UniverseErrorBoundary {...props} universe="HealthBook" />;
 }

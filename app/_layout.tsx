@@ -1,12 +1,13 @@
 import '../global.css';
 
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
+import { UniverseErrorBoundary } from '@/components/UniverseErrorBoundary';
 
 function RouteGuard() {
   const { status } = useAuth();
@@ -58,4 +59,10 @@ export default function RootLayout() {
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+// Filet de sécurité global : si le shell (providers, RouteGuard) crashe, on évite
+// l'écran blanc. Volontairement sans `universe` → message générique + Réessayer.
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  return <UniverseErrorBoundary {...props} />;
 }

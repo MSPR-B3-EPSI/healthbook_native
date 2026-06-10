@@ -1,8 +1,16 @@
-import { useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, FlatList, RefreshControl, Text, View } from 'react-native';
 import {
-  Card,
+  Alert,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  Text,
+  View,
+} from 'react-native';
+import {
+  Button,
   EmptyState,
   Screen,
   ScreenHeader,
@@ -73,10 +81,37 @@ export default function FeedScreen() {
       );
     }
     if (error) {
+      // HealthBook indisponible : on garantit une sortie visible (réessayer OU
+      // basculer d'univers) pour ne jamais rester bloqué sur un écran en erreur.
       return (
-        <Card>
-          <Text className="text-base text-danger">{error}</Text>
-        </Card>
+        <View className="flex-1 items-center justify-center px-2">
+          <Text className="mb-4 text-6xl">📡</Text>
+          <Text className="mb-2 text-center text-xl font-semibold text-text-primary">
+            HealthBook est indisponible
+          </Text>
+          <Text className="mb-6 text-center text-base text-text-secondary">
+            {error}. Réessaie, ou bascule sur un autre univers — ils restent
+            accessibles.
+          </Text>
+          <View className="w-full max-w-xs">
+            <Button
+              label="Réessayer"
+              onPress={() => load(true)}
+              loading={refreshing}
+            />
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.navigate('/(hub)')}
+            className="mt-4 flex-row items-center gap-1"
+            hitSlop={8}
+          >
+            <Ionicons name="apps-outline" size={18} color="#007AFF" />
+            <Text className="text-base font-semibold text-primary">
+              Changer d’univers
+            </Text>
+          </Pressable>
+        </View>
       );
     }
     return (

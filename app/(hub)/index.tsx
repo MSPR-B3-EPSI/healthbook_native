@@ -32,8 +32,7 @@ const UNIVERSES: Universe[] = [
     description: 'Ton coach santé intelligent, propulsé par l’IA.',
     icon: 'sparkles',
     route: '/(coach)',
-    iconBg: 'bg-primary',
-    badge: 'Bientôt',
+    iconBg: 'bg-coach',
   },
 ];
 

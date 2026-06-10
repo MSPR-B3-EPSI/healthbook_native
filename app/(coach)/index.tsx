@@ -1,32 +1,25 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
-import { EmptyState, Screen } from '@/components';
+import { Redirect } from 'expo-router';
+import { ActivityIndicator, View } from 'react-native';
+import { useCoach } from '@/features/coach/CoachProvider';
 
-// Placeholder de l'univers Coach IA. Le rôle (chat / analyse d'image / conseils)
-// et la vraie tab bar viendront quand l'API /brain (healthai-brain-api) existera.
-// cf. src/features/coach/api.ts pour le câblage réseau déjà prêt.
-export default function CoachHomeScreen() {
-  return (
-    <Screen>
-      <View className="flex-1">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Revenir au choix d'univers"
-          onPress={() => router.navigate('/(hub)')}
-          className="mt-2 flex-row items-center gap-1 self-start"
-          hitSlop={8}
-        >
-          <Ionicons name="chevron-back" size={22} color="#007AFF" />
-          <Text className="text-base font-semibold text-primary">Univers</Text>
-        </Pressable>
+/**
+ * Porte d'entrée de l'univers coach : onboarding si aucun profil n'a encore
+ * été créé, sinon directement l'accueil (tabs Séance/Nutrition/…).
+ */
+export default function CoachGate() {
+  const { status, profile } = useCoach();
 
-        <EmptyState
-          emoji="🤖"
-          title="HealthAI arrive bientôt"
-          description="Ton coach santé intelligent est en préparation. Reviens vite !"
-        />
+  if (status === 'loading') {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator color="#5B2EE5" />
       </View>
-    </Screen>
+    );
+  }
+
+  return profile ? (
+    <Redirect href="/(coach)/home" />
+  ) : (
+    <Redirect href="/(coach)/onboarding" />
   );
 }
