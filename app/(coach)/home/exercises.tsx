@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   FlatList,
@@ -8,7 +9,6 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { EmptyState } from '@/components';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useCoach } from '@/features/coach/CoachProvider';
 import { CoachHeader, ExerciseRow } from '@/features/coach/components';
@@ -67,7 +67,14 @@ export default function CoachExercisesScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
         ItemSeparatorComponent={() => <View className="h-3" />}
-        renderItem={({ item }) => <ExerciseRow exercise={item} />}
+        renderItem={({ item }) => (
+          <ExerciseRow
+            exercise={item}
+            onPress={() =>
+              router.push(`/(coach)/home/exercise/${item.exercise_id}`)
+            }
+          />
+        )}
         ListHeaderComponent={
           <View>
             <Text className="mt-2 text-3xl font-extrabold text-text-primary">
@@ -141,20 +148,22 @@ export default function CoachExercisesScreen() {
           </View>
         }
         ListEmptyComponent={
-          <View className="pt-10">
-            <EmptyState
-              emoji="🔍"
-              title={
-                allExercises.length === 0
-                  ? 'Pas encore de programme'
-                  : 'Aucun résultat'
-              }
-              description={
-                allExercises.length === 0
-                  ? 'Génère ton programme depuis l’onglet Séance pour découvrir tes exercices.'
-                  : 'Essaie un autre nom ou retire le filtre muscle.'
-              }
+          <View className="items-center px-6 pt-12">
+            <Ionicons
+              name={allExercises.length === 0 ? 'barbell-outline' : 'search-outline'}
+              size={32}
+              color="#9AA0A6"
             />
+            <Text className="mt-3 text-center text-lg font-bold text-text-primary">
+              {allExercises.length === 0
+                ? 'Aucun programme pour le moment'
+                : 'Aucun résultat'}
+            </Text>
+            <Text className="mt-1 text-center text-sm text-text-secondary">
+              {allExercises.length === 0
+                ? 'Génère ton programme depuis l’onglet Séance pour retrouver tes exercices ici.'
+                : 'Modifie ta recherche ou retire le filtre.'}
+            </Text>
           </View>
         }
       />

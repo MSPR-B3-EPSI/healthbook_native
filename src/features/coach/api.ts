@@ -1,6 +1,11 @@
 import { env } from '@/config/env';
 import { apiFetch } from '@/lib/http';
-import type { WeeklyProgram, WeeklyProgramRequest } from './types';
+import type {
+  WeeklyProgram,
+  WeeklyProgramRequest,
+  WorkoutCaloriesRequest,
+  WorkoutCaloriesResponse,
+} from './types';
 
 // API du coach IA (healthai-brain-api), exposée derrière NGINX sur `/brain`.
 // Le SSO Keycloak est mutualisé : `apiFetch` injecte le même Bearer que pour le
@@ -22,6 +27,32 @@ export async function generateWeeklyProgram(
   body: WeeklyProgramRequest,
 ): Promise<WeeklyProgram> {
   return apiFetch<WeeklyProgram>('/exercise-recommendation/weekly-program', {
+    method: 'POST',
+    body,
+    baseUrl: env.coachBaseUrl,
+  });
+}
+
+/**
+ * Dernier programme persisté de l'utilisateur (404 si aucun). Appelé au
+ * démarrage pour retrouver le programme existant au lieu d'en régénérer un.
+ */
+export async function getLatestProgram(): Promise<WeeklyProgram> {
+  return apiFetch<WeeklyProgram>(
+    '/exercise-recommendation/weekly-program/latest',
+    { baseUrl: env.coachBaseUrl },
+  );
+}
+
+/**
+ * Prédiction des calories brûlées pour une séance (modèle RandomForest du
+ * brain). Utilisée pour affiner l'estimation locale affichée sur la carte
+ * de séance.
+ */
+export async function predictWorkoutCalories(
+  body: WorkoutCaloriesRequest,
+): Promise<WorkoutCaloriesResponse> {
+  return apiFetch<WorkoutCaloriesResponse>('/recommendation/workout', {
     method: 'POST',
     body,
     baseUrl: env.coachBaseUrl,

@@ -52,7 +52,7 @@ export default function MealAnalysisCard({
           </Text>
         ) : null}
         <Text className="mt-1 text-sm text-text-secondary">
-          Ce que ton coach a reconnu sur la photo :
+          Aliments reconnus sur la photo :
         </Text>
 
         <View className="mt-3 gap-2.5">

@@ -11,7 +11,7 @@ import {
   StatTile,
 } from '@/features/coach/components';
 import { bmi, bmiCategory, bodyFatEstimate } from '@/features/coach/metrics';
-import { cardShadow, floatingShadow } from '@/lib/shadows';
+import { floatingShadow } from '@/lib/shadows';
 
 /**
  * Onglet Stats : mesures dérivées du profil onboarding (IMC, masse grasse
@@ -57,10 +57,10 @@ export default function CoachStatsScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
       >
         <Text className="mt-2 text-3xl font-extrabold text-text-primary">
-          Ton Tableau de Bord Santé
+          Tableau de bord
         </Text>
         <Text className="mb-5 mt-1 text-base text-text-secondary">
-          Visualise tes progrès et optimise ton bien-être au quotidien.
+          Tes mesures, calculées à partir de ton profil.
         </Text>
 
         {profile && imc != null && category != null ? (
@@ -132,22 +132,7 @@ export default function CoachStatsScreen() {
           </View>
         ) : null}
 
-        {/* Carte coach (citation, cf. maquette). */}
-        <View className="mt-5 rounded-3xl bg-coach p-6" style={cardShadow}>
-          <Ionicons name="sparkles" size={18} color="#FFFFFF" />
-          <Text className="mt-2 text-base italic leading-6 text-white">
-            La régularité bat l&apos;intensité. Chaque séance complétée te
-            rapproche de ton objectif.
-          </Text>
-          <Text className="mt-3 text-[11px] font-bold tracking-widest text-white/70">
-            —  HEALTH IA COACH
-          </Text>
-        </View>
 
-        <Text className="mt-4 text-center text-xs text-text-muted">
-          L&apos;historique de tes séances et l&apos;évolution de ton poids
-          arrivent avec le suivi d&apos;activité.
-        </Text>
       </ScrollView>
     </View>
   );

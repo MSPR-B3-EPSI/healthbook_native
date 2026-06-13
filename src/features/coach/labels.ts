@@ -106,3 +106,18 @@ export function sessionExerciseCount(session: ProgramSession): number {
 export function exerciseImageUrl(exerciseId: string): string {
   return `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${exerciseId}/0.jpg`;
 }
+
+/**
+ * Catégorie attendue par le modèle calories (dataset gym_members) pour un
+ * type de séance du programme.
+ */
+export function workoutTypeForSession(
+  kind: SessionKind,
+): 'Cardio' | 'HIIT' | 'Strength' | 'Yoga' {
+  if (kind === 'hiit') return 'HIIT';
+  if (kind === 'mobilite') return 'Yoga';
+  if (kind === 'cardio_leger' || kind === 'cardio_moyen' || kind === 'marche') {
+    return 'Cardio';
+  }
+  return 'Strength';
+}

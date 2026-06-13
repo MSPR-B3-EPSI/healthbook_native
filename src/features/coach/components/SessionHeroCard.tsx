@@ -4,7 +4,6 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { floatingShadow } from '@/lib/shadows';
 import {
-  estimateKcal,
   exerciseImageUrl,
   formatDuration,
   intensityBadge,
@@ -16,7 +15,8 @@ import type { ProgramSession } from '../types';
 type SessionHeroCardProps = {
   session: ProgramSession;
   durationHours: number;
-  weightKg: number;
+  /** Calories estimées (prédiction du brain, ou estimation locale en repli). */
+  kcal: number | null;
   onStart: () => void;
 };
 
@@ -27,11 +27,10 @@ type SessionHeroCardProps = {
 export default function SessionHeroCard({
   session,
   durationHours,
-  weightKg,
+  kcal,
   onStart,
 }: SessionHeroCardProps) {
   const firstExo = session.exos[0];
-  const kcal = estimateKcal(weightKg, durationHours);
 
   return (
     <View
@@ -79,7 +78,7 @@ export default function SessionHeroCard({
           <View className="flex-row items-center gap-1.5">
             <Ionicons name="flame-outline" size={16} color="#5B2EE5" />
             <Text className="text-sm font-semibold text-text-primary">
-              {kcal} kcal
+              {kcal != null ? `${kcal} kcal` : '— kcal'}
             </Text>
           </View>
         </View>

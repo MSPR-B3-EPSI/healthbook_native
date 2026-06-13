@@ -17,15 +17,15 @@ type OnboardingScaffoldProps = {
   onNext: () => void;
   ctaDisabled?: boolean;
   ctaLoading?: boolean;
-  /** Masqué sur la première étape (cf. maquette "Faisons connaissance !"). */
+  /** Masqué sur la première étape, remplacé par une croix de sortie. */
   showBack?: boolean;
   hint?: string;
 };
 
 /**
- * Gabarit commun des 4 étapes d'onboarding coach : flèche retour, indicateur
- * de progression (le segment actif est étiré en pilule), titre/sous-titre
- * centrés, contenu scrollable, CTA pilule + mention légale en bas.
+ * Gabarit commun des 4 étapes d'onboarding coach : navigation (retour ou
+ * sortie vers le hub), indicateur de progression, titre/sous-titre centrés,
+ * contenu scrollable, CTA pilule + mention en bas.
  */
 export default function OnboardingScaffold({
   step,
@@ -37,7 +37,7 @@ export default function OnboardingScaffold({
   ctaDisabled = false,
   ctaLoading = false,
   showBack = true,
-  hint = 'Vous pourrez changer cet objectif à tout moment dans les réglages.',
+  hint = 'Tu pourras modifier ces informations à tout moment depuis ton profil.',
 }: OnboardingScaffoldProps) {
   const insets = useSafeAreaInsets();
 
@@ -46,8 +46,11 @@ export default function OnboardingScaffold({
       className="flex-1 bg-background px-5"
       style={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 }}
     >
-      {/* Barre du haut : retour (optionnel) + progression centrée. */}
-      <View className="h-10 flex-row items-center">
+      {/* Barre du haut : retour (ou sortie) + progression centrée. */}
+      <View
+        className="h-10 flex-row items-center"
+        accessibilityLabel={`Étape ${step + 1} sur ${TOTAL_STEPS}`}
+      >
         {showBack ? (
           <Pressable
             accessibilityRole="button"
@@ -58,7 +61,17 @@ export default function OnboardingScaffold({
           >
             <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
           </Pressable>
-        ) : null}
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Quitter la configuration"
+            onPress={() => router.navigate('/(hub)')}
+            hitSlop={12}
+            className="absolute left-0 z-10"
+          >
+            <Ionicons name="close" size={24} color="#6B6B6B" />
+          </Pressable>
+        )}
         <View className="flex-1 flex-row items-center justify-center gap-2">
           {Array.from({ length: TOTAL_STEPS }, (_, i) => (
             <View
@@ -66,7 +79,9 @@ export default function OnboardingScaffold({
               className={
                 i === step
                   ? 'h-2 w-8 rounded-full bg-coach'
-                  : 'h-2 w-2 rounded-full bg-coach/25'
+                  : i < step
+                    ? 'h-2 w-2 rounded-full bg-coach/60'
+                    : 'h-2 w-2 rounded-full bg-coach/25'
               }
             />
           ))}

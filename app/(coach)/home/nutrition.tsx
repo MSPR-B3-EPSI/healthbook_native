@@ -10,9 +10,9 @@ import { useCoach } from '@/features/coach/CoachProvider';
 import {
   CoachHeader,
   MealAnalysisCard,
-  NutritionTipCard,
   ScanMealCard,
 } from '@/features/coach/components';
+import { userFacingError } from '@/features/coach/errors';
 import {
   dailyCalorieTarget,
   dailyProteinTarget,
@@ -20,9 +20,9 @@ import {
 import { floatingShadow } from '@/lib/shadows';
 
 /**
- * Onglet Nutrition : scan de plat (photo → POST /brain/vision/analyze, modèle
- * nateraw/food) + objectifs caloriques calculés depuis le profil onboarding.
- * Les repas planifiés de la maquette viendront avec le futur tracking-api.
+ * Onglet Nutrition : scan de plat (photo → POST /brain/vision/analyze) et
+ * repères caloriques calculés depuis le profil onboarding. Le journal des
+ * repas viendra avec le futur tracking-api.
  */
 export default function CoachNutritionScreen() {
   const insets = useSafeAreaInsets();
@@ -47,28 +47,49 @@ export default function CoachNutritionScreen() {
       });
       setPredictions(result.predictions);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
+    } catch (err) {
+      if (__DEV__) console.log('[Coach] Échec analyse photo :', err);
       setScanError(
-        'Analyse impossible. Vérifie que le backend tourne, puis réessaie.',
+        userFacingError(
+          err,
+          'L’analyse de la photo a échoué. Réessaie avec une autre image.',
+        ),
       );
     } finally {
       setScanning(false);
     }
   };
 
+  // Les pickers peuvent rejeter (image illisible, fichier cloud non téléchargé,
+  // permission révoquée…) : tout est rattrapé ici pour éviter un crash.
   const pickFromCamera = async () => {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) return;
-    const res = await ImagePicker.launchCameraAsync({ quality: 0.7 });
-    if (!res.canceled && res.assets[0]) void runAnalysis(res.assets[0]);
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        setScanError(
+          'L’accès à la caméra est désactivé. Autorise-le dans les réglages du téléphone.',
+        );
+        return;
+      }
+      const res = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+      if (!res.canceled && res.assets[0]) await runAnalysis(res.assets[0]);
+    } catch (err) {
+      if (__DEV__) console.log('[Coach] Échec caméra :', err);
+      setScanError('Impossible de lire cette photo. Réessaie avec une autre image.');
+    }
   };
 
   const pickFromLibrary = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.7,
-    });
-    if (!res.canceled && res.assets[0]) void runAnalysis(res.assets[0]);
+    try {
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.7,
+      });
+      if (!res.canceled && res.assets[0]) await runAnalysis(res.assets[0]);
+    } catch (err) {
+      if (__DEV__) console.log('[Coach] Échec galerie :', err);
+      setScanError('Impossible de lire cette photo. Réessaie avec une autre image.');
+    }
   };
 
   const onScanPress = () => {
@@ -92,11 +113,10 @@ export default function CoachNutritionScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
       >
         <Text className="mt-2 text-3xl font-extrabold text-text-primary">
-          Ton Plan Nutritionnel
+          Nutrition
         </Text>
         <Text className="mb-5 mt-1 text-base text-text-secondary">
-          Garde le cap sur tes objectifs aujourd&apos;hui. Ton corps est ton
-          sanctuaire.
+          Tes repères du jour et l&apos;analyse de tes repas.
         </Text>
 
         <ScanMealCard onPress={onScanPress} loading={scanning} />
@@ -108,7 +128,7 @@ export default function CoachNutritionScreen() {
           </View>
         ) : null}
 
-        {/* Objectifs du jour, calculés depuis le profil (Mifflin-St Jeor). */}
+        {/* Repères du jour, calculés depuis le profil (Mifflin-St Jeor). */}
         {calories != null ? (
           <View
             className="mt-5 flex-row items-center rounded-3xl bg-coach p-5"
@@ -116,13 +136,13 @@ export default function CoachNutritionScreen() {
           >
             <View className="flex-1">
               <Text className="text-[11px] font-bold uppercase tracking-widest text-white/80">
-                Objectif calories du jour
+                Apport calorique conseillé
               </Text>
               <Text className="mt-1 text-3xl font-extrabold text-white">
                 {calories.toLocaleString('fr-FR')} kcal
               </Text>
               <Text className="mt-1 text-xs text-white/80">
-                Estimation selon ton profil et ton objectif.
+                Estimation basée sur ton profil et ton objectif.
               </Text>
             </View>
             <View className="items-center rounded-2xl bg-white/15 px-4 py-3">
@@ -140,15 +160,10 @@ export default function CoachNutritionScreen() {
           <View className="mt-5">
             <MealAnalysisCard imageUri={scanUri} predictions={predictions} />
             <Text className="mt-2 text-center text-xs text-text-muted">
-              Reconnaissance d&apos;aliments par IA — les valeurs nutritionnelles
-              détaillées arrivent bientôt.
+              Résultats indicatifs issus de la reconnaissance d&apos;image.
             </Text>
           </View>
         ) : null}
-
-        <View className="mt-5">
-          <NutritionTipCard tip="Pense à consommer 30g de protéines dans les 60 min après ta séance pour optimiser ta récupération musculaire." />
-        </View>
       </ScrollView>
     </View>
   );

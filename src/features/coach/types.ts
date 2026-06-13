@@ -84,3 +84,22 @@ export type WeeklyProgram = {
   muscle_split?: MuscleSplit | null;
   programId: number;
 };
+
+/** Corps de POST /brain/recommendation/workout (modèle calories RandomForest). */
+export type WorkoutCaloriesRequest = {
+  age: number;
+  weight_kg: number;
+  height_m: number;
+  bmi: number;
+  session_duration_hours: number;
+  workout_frequency_days_per_week: number;
+  /** 1=débutant, 2=intermédiaire, 3=avancé */
+  experience_level: number;
+  fat_percentage: number;
+  gender: Gender;
+  workout_type: 'Cardio' | 'HIIT' | 'Strength' | 'Yoga';
+};
+
+export type WorkoutCaloriesResponse = {
+  estimated_calories_burned: number;
+};

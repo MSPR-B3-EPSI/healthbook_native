@@ -81,7 +81,7 @@ export default function OnboardingLevelScreen() {
     <OnboardingScaffold
       step={3}
       title="Quel est ton niveau en musculation ?"
-      subtitle="Cela nous aide à personnaliser tes programmes d'entraînement et tes objectifs de progression."
+      subtitle="Ton niveau détermine l'intensité et le nombre de séances proposées."
       ctaLabel="Terminer"
       onNext={() => void onFinish()}
       ctaDisabled={!selected}
@@ -97,7 +97,10 @@ export default function OnboardingLevelScreen() {
             title={opt.title}
             subtitle={opt.subtitle}
             selected={selected === opt.key}
-            onPress={() => setSelected(opt.key)}
+            onPress={() => {
+              void Haptics.selectionAsync();
+              setSelected(opt.key);
+            }}
           />
         ))}
       </View>

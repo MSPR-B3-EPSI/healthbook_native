@@ -7,7 +7,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { generateWeeklyProgram } from './api';
+import { HttpError } from '@/lib/http';
+import { generateWeeklyProgram, getLatestProgram } from './api';
+import { userFacingError } from './errors';
 import {
   clearCoachProfile,
   loadCoachProfile,
@@ -23,8 +25,9 @@ import type { Gender, WeeklyProgram } from './types';
 // Contexte de l'univers coach, monté dans app/(coach)/_layout.tsx :
 // - profil onboarding (persisté en SecureStore, source de vérité du gate)
 // - brouillon d'onboarding partagé entre les 4 étapes
-// - programme hebdo (en mémoire : pas de GET côté brain pour l'instant,
-//   on régénère à la demande — le backend persiste de son côté).
+// - programme hebdo : restauré depuis le brain (GET latest) au premier
+//   besoin, généré sinon ; régénéré uniquement après modification du profil
+//   ou demande explicite.
 
 export type OnboardingDraft = {
   firstName?: string;
@@ -49,7 +52,9 @@ type CoachContextValue = {
   program: WeeklyProgram | null;
   generating: boolean;
   programError: string | null;
-  /** Appelle le brain (idempotent si déjà en cours). */
+  /** Restaure le dernier programme persisté, ou en génère un si aucun. */
+  ensureProgram: () => Promise<void>;
+  /** Force une nouvelle génération (écrase le programme courant). */
   generateProgram: () => Promise<void>;
 };
 
@@ -62,7 +67,10 @@ export function CoachProvider({ children }: { children: React.ReactNode }) {
   const [program, setProgram] = useState<WeeklyProgram | null>(null);
   const [generating, setGenerating] = useState(false);
   const [programError, setProgramError] = useState<string | null>(null);
-  const generatingRef = useRef(false);
+  const busyRef = useRef(false);
+  // true = le profil vient de changer : le programme persisté côté brain ne
+  // correspond plus, il faut régénérer au lieu de restaurer.
+  const staleRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,9 +92,9 @@ export function CoachProvider({ children }: { children: React.ReactNode }) {
     await saveCoachProfile(next);
     setProfile(next);
     setDraft({});
-    // Le profil a changé : l'ancien programme ne correspond plus.
     setProgram(null);
     setProgramError(null);
+    staleRef.current = true;
   }, []);
 
   const resetProfile = useCallback(async () => {
@@ -94,26 +102,61 @@ export function CoachProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
     setProgram(null);
     setProgramError(null);
+    staleRef.current = false;
   }, []);
 
-  const generateProgram = useCallback(async () => {
-    if (!profile || generatingRef.current) return;
-    generatingRef.current = true;
+  /** Génération via le brain (POST). Partagé par ensureProgram/generateProgram. */
+  const runGeneration = useCallback(async (p: CoachProfile) => {
+    const result = await generateWeeklyProgram(toWeeklyProgramRequest(p));
+    staleRef.current = false;
+    setProgram(result);
+  }, []);
+
+  const ensureProgram = useCallback(async () => {
+    if (!profile || busyRef.current) return;
+    busyRef.current = true;
     setGenerating(true);
     setProgramError(null);
     try {
-      const result = await generateWeeklyProgram(toWeeklyProgramRequest(profile));
-      setProgram(result);
+      if (!staleRef.current) {
+        try {
+          const latest = await getLatestProgram();
+          setProgram(latest);
+          return;
+        } catch (err) {
+          // 404 = aucun programme encore persisté → on en génère un.
+          if (!(err instanceof HttpError && err.status === 404)) throw err;
+        }
+      }
+      await runGeneration(profile);
+    } catch (err) {
+      if (__DEV__) console.log('[Coach] Échec chargement programme :', err);
+      setProgramError(
+        userFacingError(err, 'Le chargement du programme a échoué. Réessaie.'),
+      );
+    } finally {
+      busyRef.current = false;
+      setGenerating(false);
+    }
+  }, [profile, runGeneration]);
+
+  const generateProgram = useCallback(async () => {
+    if (!profile || busyRef.current) return;
+    busyRef.current = true;
+    setGenerating(true);
+    setProgramError(null);
+    try {
+      await runGeneration(profile);
     } catch (err) {
       if (__DEV__) console.log('[Coach] Échec génération programme :', err);
       setProgramError(
-        'Impossible de générer ton programme. Vérifie que le backend tourne, puis réessaie.',
+        userFacingError(err, 'La génération du programme a échoué. Réessaie.'),
       );
     } finally {
-      generatingRef.current = false;
+      busyRef.current = false;
       setGenerating(false);
     }
-  }, [profile]);
+  }, [profile, runGeneration]);
 
   const value = useMemo<CoachContextValue>(
     () => ({
@@ -126,6 +169,7 @@ export function CoachProvider({ children }: { children: React.ReactNode }) {
       program,
       generating,
       programError,
+      ensureProgram,
       generateProgram,
     }),
     [
@@ -138,6 +182,7 @@ export function CoachProvider({ children }: { children: React.ReactNode }) {
       program,
       generating,
       programError,
+      ensureProgram,
       generateProgram,
     ],
   );

@@ -29,11 +29,11 @@ export default function ScanMealCard({ onPress, loading = false }: ScanMealCardP
         )}
       </View>
       <Text className="mt-3 text-lg font-bold text-text-primary">
-        {loading ? 'Analyse en cours…' : 'Scanne ton plat'}
+        {loading ? 'Analyse en cours' : 'Scanne ton plat'}
       </Text>
       <Text className="mt-1 text-center text-sm text-text-secondary">
         {loading
-          ? 'Ton coach identifie les aliments sur la photo.'
+          ? 'Identification des aliments sur la photo.'
           : 'Prends en photo ton assiette, l’IA identifie ton plat.'}
       </Text>
     </Pressable>

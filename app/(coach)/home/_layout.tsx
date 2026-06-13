@@ -98,6 +98,16 @@ export default function CoachTabsLayout() {
           ),
         }}
       />
+      {/* Routes poussées, hors tabs : suivi de séance + détail d'exercice
+          (même pattern que (social)/post/[id]). */}
+      <Tabs.Screen
+        name="session"
+        options={{ href: null, tabBarStyle: { display: 'none' } }}
+      />
+      <Tabs.Screen
+        name="exercise/[id]"
+        options={{ href: null, tabBarStyle: { display: 'none' } }}
+      />
       <Tabs.Screen
         name="profile"
         options={{

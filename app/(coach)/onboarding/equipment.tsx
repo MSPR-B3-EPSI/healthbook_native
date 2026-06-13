@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -28,6 +29,7 @@ export default function OnboardingEquipmentScreen() {
   const [selected, setSelected] = useState<EquipmentKey[]>(draft.equipment ?? []);
 
   const toggle = (key: EquipmentKey) => {
+    void Haptics.selectionAsync();
     setSelected((prev) => {
       // "Aucun" est exclusif : il remplace le reste, et réciproquement.
       if (key === 'none') return prev.includes('none') ? [] : ['none'];
@@ -48,7 +50,7 @@ export default function OnboardingEquipmentScreen() {
     <OnboardingScaffold
       step={2}
       title="De quel matériel disposes-tu ?"
-      subtitle="Sélectionne tout ce qui se trouve dans ton espace d'entraînement pour personnaliser tes séances."
+      subtitle="Sélectionne le matériel disponible dans ton espace d'entraînement. Plusieurs choix possibles."
       ctaLabel="Suivant"
       onNext={onNext}
       ctaDisabled={selected.length === 0}

@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -68,7 +69,7 @@ export default function OnboardingObjectiveScreen() {
     <OnboardingScaffold
       step={1}
       title="Quel est ton objectif principal ?"
-      subtitle="Personnalisez votre sanctuaire de santé en choisissant la direction qui vous inspire aujourd'hui."
+      subtitle="Ton programme de la semaine sera construit autour de cet objectif."
       ctaLabel="Suivant"
       onNext={onNext}
       ctaDisabled={!selected}
@@ -83,7 +84,10 @@ export default function OnboardingObjectiveScreen() {
             title={opt.title}
             subtitle={opt.subtitle}
             selected={selected === opt.key}
-            onPress={() => setSelected(opt.key)}
+            onPress={() => {
+              void Haptics.selectionAsync();
+              setSelected(opt.key);
+            }}
           />
         ))}
       </View>

@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   Text,
@@ -15,7 +15,6 @@ import {
   CoachButton,
   CoachHeader,
   ExerciseRow,
-  NutritionTipCard,
   SegmentedToggle,
   SessionHeroCard,
   WeekStrip,
@@ -26,33 +25,31 @@ import {
   todayKey,
   WEEK_ORDER,
 } from '@/features/coach/labels';
+import { useSessionCalories } from '@/features/coach/useSessionCalories';
 import { cardShadow } from '@/lib/shadows';
-
-// Conseils statiques en attendant POST /brain/recommendation/diet (qui demande
-// un profil santé plus riche que l'onboarding actuel).
-const NUTRITION_TIPS = [
-  'Pense à consommer 30g de protéines dans les 60 min après ta séance pour optimiser ta récupération musculaire.',
-  'Hydrate-toi tout au long de la journée : vise 2 à 2,5 L d’eau, davantage les jours de séance.',
-  'Privilégie des glucides complexes (riz complet, patate douce) 2 à 3 h avant l’entraînement.',
-  'Les jours de repos, garde un apport en protéines régulier : la récupération, c’est là que le muscle se construit.',
-];
 
 type ViewMode = 'day' | 'week';
 
 export default function CoachHomeScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { profile, program, generating, programError, generateProgram } =
-    useCoach();
+  const {
+    profile,
+    program,
+    generating,
+    programError,
+    ensureProgram,
+    generateProgram,
+  } = useCoach();
   const [mode, setMode] = useState<ViewMode>('day');
   const [showAllExercises, setShowAllExercises] = useState(false);
 
-  // Le programme vit en mémoire : on le (re)génère à l'arrivée si absent.
+  // Restaure le dernier programme persisté (ou en génère un au premier accès).
   useEffect(() => {
     if (profile && !program && !generating && !programError) {
-      void generateProgram();
+      void ensureProgram();
     }
-  }, [profile, program, generating, programError, generateProgram]);
+  }, [profile, program, generating, programError, ensureProgram]);
 
   const today = todayKey();
   const todayPlan = useMemo(
@@ -74,13 +71,10 @@ export default function CoachHomeScreen() {
     [program],
   );
 
-  const tip = NUTRITION_TIPS[new Date().getDay() % NUTRITION_TIPS.length];
+  const sessionKcal = useSessionCalories(todaySession);
 
   const onStartSession = () => {
-    Alert.alert(
-      'Bientôt disponible',
-      'Le suivi de séance en direct arrive dans une prochaine version. 💪',
-    );
+    router.push('/(coach)/home/session');
   };
 
   return (
@@ -112,7 +106,7 @@ export default function CoachHomeScreen() {
               Création de ton programme…
             </Text>
             <Text className="mt-2 text-center text-sm text-text-secondary">
-              Ton coach analyse ton profil pour composer ta semaine idéale.
+              Nous préparons ta semaine d&apos;entraînement personnalisée.
             </Text>
           </View>
         ) : programError ? (
@@ -122,7 +116,7 @@ export default function CoachHomeScreen() {
           >
             <Ionicons name="cloud-offline-outline" size={36} color="#9AA0A6" />
             <Text className="mt-3 text-center text-lg font-bold text-text-primary">
-              Oups, pas de programme
+              Programme indisponible
             </Text>
             <Text className="mb-5 mt-2 text-center text-sm text-text-secondary">
               {programError}
@@ -137,7 +131,7 @@ export default function CoachHomeScreen() {
               Ton Planning d&apos;Aujourd&apos;hui
             </Text>
             <Text className="mb-5 mt-1 text-base text-text-secondary">
-              Prêt à dépasser tes limites ? Voici ta session du jour.
+              Voici ta séance du jour, adaptée à ton profil.
             </Text>
 
             {todaySession && program ? (
@@ -145,7 +139,7 @@ export default function CoachHomeScreen() {
                 <SessionHeroCard
                   session={todaySession}
                   durationHours={program.duration_predicted_hours}
-                  weightKg={profile?.weightKg ?? 70}
+                  kcal={sessionKcal}
                   onStart={onStartSession}
                 />
 
@@ -171,13 +165,16 @@ export default function CoachHomeScreen() {
                     ? todaySession.exos
                     : todaySession.exos.slice(0, 3)
                   ).map((exo) => (
-                    <ExerciseRow key={exo.exercise_id} exercise={exo} />
+                    <ExerciseRow
+                      key={exo.exercise_id}
+                      exercise={exo}
+                      onPress={() =>
+                        router.push(`/(coach)/home/exercise/${exo.exercise_id}`)
+                      }
+                    />
                   ))}
                 </View>
 
-                <View className="mt-5">
-                  <NutritionTipCard tip={tip} />
-                </View>
               </>
             ) : (
               <>
@@ -193,12 +190,9 @@ export default function CoachHomeScreen() {
                     Jour de récupération
                   </Text>
                   <Text className="mt-2 text-center text-sm text-text-secondary">
-                    Pas de séance aujourd&apos;hui : ton corps se reconstruit.
-                    Marche légère, étirements et bonne nuit de sommeil !
+                    Aucune séance prévue aujourd&apos;hui. La récupération
+                    fait partie du programme.
                   </Text>
-                </View>
-                <View className="mt-5">
-                  <NutritionTipCard tip={NUTRITION_TIPS[3]} />
                 </View>
               </>
             )}

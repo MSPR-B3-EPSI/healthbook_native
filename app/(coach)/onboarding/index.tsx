@@ -55,11 +55,10 @@ export default function OnboardingIdentityScreen() {
       step={0}
       showBack={false}
       title="Faisons connaissance !"
-      subtitle="Parlez-nous un peu de vous pour personnaliser votre sanctuaire de santé."
+      subtitle="Ces informations servent à calibrer ton programme d'entraînement."
       ctaLabel="Suivant"
       onNext={handleSubmit(onNext)}
       ctaDisabled={!isValid}
-      hint="Vous pourrez modifier ces informations à tout moment dans les réglages."
     >
       <Controller
         control={control}
