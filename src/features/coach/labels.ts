@@ -1,4 +1,9 @@
-import type { DayOfWeek, ProgramSession, SessionKind } from './types';
+import type {
+  DayOfWeek,
+  ProgramExercise,
+  ProgramSession,
+  SessionKind,
+} from './types';
 
 // Libellés français + helpers d'affichage du programme (écran Séance).
 // Le backend renvoie des enums techniques (session_kind, day_of_week) :
@@ -91,6 +96,61 @@ export function estimateKcal(weightKg: number, durationHours: number): number {
 export function formatRest(seconds: number): string {
   if (seconds >= 60 && seconds % 60 === 0) return `${seconds / 60}min`;
   return `${seconds}s`;
+}
+
+export type ExerciseFamily = 'muscu' | 'cardio' | 'hiit';
+
+/**
+ * Famille d'effort d'un exercice (D27), déduite des champs renseignés par le
+ * backend : cardio → `duration_minutes`, HIIT → `work_seconds`/`rounds`,
+ * sinon musculation (`sets`/`reps`).
+ */
+export function exerciseFamily(exo: ProgramExercise): ExerciseFamily {
+  if (exo.duration_minutes != null) return 'cardio';
+  if (exo.work_seconds != null || exo.rounds != null) return 'hiit';
+  return 'muscu';
+}
+
+/** Résumé court d'un exercice pour la ligne de liste (cf. ExerciseRow). */
+export function exerciseSummary(exo: ProgramExercise): string {
+  switch (exerciseFamily(exo)) {
+    case 'cardio':
+      return `${exo.duration_minutes} min en continu`;
+    case 'hiit': {
+      const rounds = exo.rounds ?? 1;
+      return `${rounds} tour${rounds > 1 ? 's' : ''} • ${exo.work_seconds}s / ${exo.hiit_rest_seconds}s`;
+    }
+    default:
+      return `${exo.sets} séries • ${exo.reps} reps`;
+  }
+}
+
+/** Consignes détaillées (écran détail) — libellé + valeur, selon la famille. */
+export function exerciseSpecs(
+  exo: ProgramExercise,
+): { label: string; value: string }[] {
+  const charge = exo.weight_kg != null ? `${exo.weight_kg} kg` : 'Poids du corps';
+  switch (exerciseFamily(exo)) {
+    case 'cardio':
+      return [
+        { label: 'Durée', value: `${exo.duration_minutes} min` },
+        { label: 'Effort', value: 'Continu' },
+      ];
+    case 'hiit':
+      return [
+        { label: 'Travail', value: `${exo.work_seconds}s` },
+        { label: 'Repos', value: `${exo.hiit_rest_seconds}s` },
+        { label: 'Tours', value: String(exo.rounds) },
+        { label: 'Charge', value: charge },
+      ];
+    default:
+      return [
+        { label: 'Séries', value: String(exo.sets) },
+        { label: 'Répétitions', value: String(exo.reps) },
+        { label: 'Repos', value: formatRest(exo.rest_seconds ?? 0) },
+        { label: 'Charge', value: charge },
+      ];
+  }
 }
 
 /** Nombre total d'exercices d'une séance. */

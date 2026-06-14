@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCoach } from '@/features/coach/CoachProvider';
-import { exerciseImageUrl, formatRest } from '@/features/coach/labels';
+import { exerciseImageUrl, exerciseSpecs } from '@/features/coach/labels';
 import type { ProgramExercise } from '@/features/coach/types';
 import { cardShadow } from '@/lib/shadows';
 
@@ -54,16 +54,8 @@ export default function ExerciseDetailScreen() {
     );
   }
 
-  const specs = [
-    { label: 'Séries', value: String(exercise.sets) },
-    { label: 'Répétitions', value: String(exercise.reps) },
-    { label: 'Repos', value: formatRest(exercise.rest_seconds) },
-    {
-      label: 'Charge',
-      value:
-        exercise.weight_kg != null ? `${exercise.weight_kg} kg` : 'Poids du corps',
-    },
-  ];
+  // Consignes adaptées à la famille de l'exercice (muscu / cardio / HIIT).
+  const specs = exerciseSpecs(exercise);
 
   return (
     <View className="flex-1 bg-background">

@@ -51,13 +51,28 @@ export type WeeklyProgramRequest = {
   equipment_available: string[];
 };
 
+/**
+ * Exercice d'un programme — 3 grammaires d'effort (D27). Selon la famille de la
+ * séance parente, **un seul groupe** de champs est rempli, les autres sont null :
+ * - **Musculation** (`musculation_*`, `poids_de_corps`) → `sets`, `reps`, `rest_seconds`.
+ * - **Cardio continu** (`cardio_*`, `marche`, `mobilite`) → `duration_minutes`.
+ * - **HIIT** → `work_seconds`, `hiit_rest_seconds`, `rounds`.
+ */
 export type ProgramExercise = {
   /** Slug du catalogue (ex: "3_4_Sit-Up") — sert aussi à construire l'URL d'image. */
   exercise_id: string;
   exercise_name: string;
-  sets: number;
-  reps: number;
-  rest_seconds: number;
+  // — Musculation
+  sets?: number | null;
+  reps?: number | null;
+  rest_seconds?: number | null;
+  // — Cardio continu
+  duration_minutes?: number | null;
+  // — HIIT (intervalles)
+  work_seconds?: number | null;
+  hiit_rest_seconds?: number | null;
+  rounds?: number | null;
+  // — Communs
   /** null = poids du corps */
   weight_kg?: number | null;
   equipment?: string | null;

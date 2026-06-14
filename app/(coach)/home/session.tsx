@@ -7,7 +7,9 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCoach } from '@/features/coach/CoachProvider';
 import {
+  exerciseFamily,
   exerciseImageUrl,
+  exerciseSummary,
   formatRest,
   sessionLabel,
   todayKey,
@@ -187,9 +189,11 @@ export default function SessionScreen() {
                     {exo.exercise_name}
                   </Text>
                   <Text className="mt-0.5 text-sm text-text-secondary">
-                    {exo.sets} × {exo.reps}
-                    {exo.weight_kg != null ? ` • ${exo.weight_kg} kg` : ''} • repos{' '}
-                    {formatRest(exo.rest_seconds)}
+                    {exerciseSummary(exo)}
+                    {exo.weight_kg != null ? ` • ${exo.weight_kg} kg` : ''}
+                    {exerciseFamily(exo) === 'muscu' && exo.rest_seconds != null
+                      ? ` • repos ${formatRest(exo.rest_seconds)}`
+                      : ''}
                   </Text>
                 </View>
                 <View

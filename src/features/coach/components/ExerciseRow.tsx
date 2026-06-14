@@ -3,7 +3,12 @@ import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { cardShadow } from '@/lib/shadows';
-import { exerciseImageUrl, formatRest } from '../labels';
+import {
+  exerciseFamily,
+  exerciseImageUrl,
+  exerciseSummary,
+  formatRest,
+} from '../labels';
 import type { ProgramExercise } from '../types';
 
 type ExerciseRowProps = {
@@ -52,7 +57,7 @@ export default function ExerciseRow({ exercise, onPress }: ExerciseRowProps) {
           {exercise.exercise_name}
         </Text>
         <Text className="mt-0.5 text-sm text-text-secondary">
-          {exercise.sets} séries • {exercise.reps} reps
+          {exerciseSummary(exercise)}
         </Text>
         <View className="mt-1.5 flex-row gap-2">
           <View className="rounded-full bg-coach-light px-2.5 py-0.5">
@@ -62,11 +67,16 @@ export default function ExerciseRow({ exercise, onPress }: ExerciseRowProps) {
                 : 'Poids du corps'}
             </Text>
           </View>
-          <View className="rounded-full bg-background px-2.5 py-0.5">
-            <Text className="text-xs font-semibold text-text-secondary">
-              Repos: {formatRest(exercise.rest_seconds)}
-            </Text>
-          </View>
+          {/* Badge repos : seulement en muscu (cardio/HIIT portent leur cadence
+              dans le résumé ci-dessus). */}
+          {exerciseFamily(exercise) === 'muscu' &&
+          exercise.rest_seconds != null ? (
+            <View className="rounded-full bg-background px-2.5 py-0.5">
+              <Text className="text-xs font-semibold text-text-secondary">
+                Repos: {formatRest(exercise.rest_seconds)}
+              </Text>
+            </View>
+          ) : null}
         </View>
       </View>
 
