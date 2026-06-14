@@ -13,7 +13,7 @@ export default function EmptyState({
   description,
 }: EmptyStateProps) {
   return (
-    <View className="items-center mt-12 px-6">
+    <View className="flex-1 items-center justify-center px-6">
       <Text className="text-6xl mb-4">{emoji}</Text>
       <Text className="text-xl font-semibold text-text-primary mb-2 text-center">
         {title}
