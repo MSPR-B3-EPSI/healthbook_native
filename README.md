@@ -5,6 +5,8 @@ App Expo / React Native. Elle **ne fonctionne pas seule** : elle a besoin du bac
 
 > Ce guide couvre le lancement en **dev build natif** (`npx expo run:android`).
 > Pour un test rapide sans build natif, voir la note « Expo Go » en bas.
+>
+> 📐 **Comment fonctionne l'app** (architecture, fichiers/dossiers, appels API, grandes fonctions) → [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ---
 

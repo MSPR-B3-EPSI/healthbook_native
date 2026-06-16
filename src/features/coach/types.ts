@@ -118,3 +118,26 @@ export type WorkoutCaloriesRequest = {
 export type WorkoutCaloriesResponse = {
   estimated_calories_burned: number;
 };
+
+/**
+ * Corps de POST /brain/recommendation/diet (modèle diététique GradientBoosting).
+ * Champs cliniques (cholesterol/tension/glycémie/severity) non collectés par
+ * l'app → renseignés avec des valeurs normales par défaut (cf. toDietRequest).
+ */
+export type DietRecommendationRequest = {
+  age: number;
+  weight_kg: number;
+  height_cm: number;
+  bmi: number;
+  cholesterol_mg_dl: number;
+  blood_pressure_mmhg: number;
+  glucose_mg_dl: number;
+  daily_caloric_intake: number;
+  weekly_exercise_hours: number;
+  gender: Gender;
+  severity: 'Mild' | 'Moderate' | 'Severe';
+  physical_activity_level: 'Active' | 'Moderate' | 'Sedentary';
+};
+
+/** Réponse : une catégorie de régime (ex. "Balanced" / "Low_Carb" / "Low_Sodium"). */
+export type DietRecommendationResponse = { diet_recommendation: string };

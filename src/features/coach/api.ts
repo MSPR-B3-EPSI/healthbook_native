@@ -1,6 +1,8 @@
 import { env } from '@/config/env';
 import { apiFetch } from '@/lib/http';
 import type {
+  DietRecommendationRequest,
+  DietRecommendationResponse,
   WeeklyProgram,
   WeeklyProgramRequest,
   WorkoutCaloriesRequest,
@@ -53,6 +55,21 @@ export async function predictWorkoutCalories(
   body: WorkoutCaloriesRequest,
 ): Promise<WorkoutCaloriesResponse> {
   return apiFetch<WorkoutCaloriesResponse>('/recommendation/workout', {
+    method: 'POST',
+    body,
+    baseUrl: env.coachBaseUrl,
+  });
+}
+
+/**
+ * Recommandation diététique : prédit une catégorie de régime à partir du profil
+ * santé (modèle GradientBoosting du brain). Conseil indicatif — le modèle est
+ * entraîné sur un dataset clinique.
+ */
+export async function recommendDiet(
+  body: DietRecommendationRequest,
+): Promise<DietRecommendationResponse> {
+  return apiFetch<DietRecommendationResponse>('/recommendation/diet', {
     method: 'POST',
     body,
     baseUrl: env.coachBaseUrl,

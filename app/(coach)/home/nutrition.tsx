@@ -1,11 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthProvider';
-import { analyzeMeal, type VisionPrediction } from '@/features/coach/api';
+import {
+  analyzeMeal,
+  recommendDiet,
+  type VisionPrediction,
+} from '@/features/coach/api';
 import { useCoach } from '@/features/coach/CoachProvider';
 import {
   CoachHeader,
@@ -13,10 +17,12 @@ import {
   ScanMealCard,
 } from '@/features/coach/components';
 import { userFacingError } from '@/features/coach/errors';
+import { dietAdvice } from '@/features/coach/labels';
 import {
   dailyCalorieTarget,
   dailyProteinTarget,
 } from '@/features/coach/metrics';
+import { toDietRequest } from '@/features/coach/profile';
 import { floatingShadow } from '@/lib/shadows';
 
 /**
@@ -33,6 +39,30 @@ export default function CoachNutritionScreen() {
   const [predictions, setPredictions] = useState<VisionPrediction[] | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
+
+  // Conseil diététique IA (modèle du brain) — chargé une fois au montage depuis
+  // le profil. Échec silencieux : la carte affiche juste "indisponible".
+  const [diet, setDiet] = useState<string | null>(null);
+  const [dietLoading, setDietLoading] = useState(false);
+
+  useEffect(() => {
+    if (!profile) return;
+    let cancelled = false;
+    setDietLoading(true);
+    recommendDiet(toDietRequest(profile))
+      .then((r) => {
+        if (!cancelled) setDiet(r.diet_recommendation);
+      })
+      .catch((err) => {
+        if (__DEV__) console.log('[Coach] Reco diète indisponible :', err);
+      })
+      .finally(() => {
+        if (!cancelled) setDietLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile]);
 
   const runAnalysis = async (asset: ImagePicker.ImagePickerAsset) => {
     setScanning(true);
@@ -153,6 +183,38 @@ export default function CoachNutritionScreen() {
                 {proteins} g
               </Text>
             </View>
+          </View>
+        ) : null}
+
+        {/* Conseil diététique IA (modèle du brain), à partir du profil. */}
+        {profile ? (
+          <View
+            className="mt-5 rounded-3xl bg-surface p-5"
+            style={floatingShadow}
+          >
+            <Text className="text-[11px] font-bold uppercase tracking-widest text-text-muted">
+              Conseil diététique IA
+            </Text>
+            {dietLoading ? (
+              <ActivityIndicator className="mt-3 self-start" color="#9AA0A6" />
+            ) : diet ? (
+              <>
+                <Text className="mt-2 text-2xl font-extrabold text-text-primary">
+                  {dietAdvice(diet).titre}
+                </Text>
+                <Text className="mt-1 text-sm text-text-secondary">
+                  {dietAdvice(diet).desc}
+                </Text>
+                <Text className="mt-3 text-xs text-text-muted">
+                  Conseil indicatif basé sur ton profil — ne remplace pas un avis
+                  médical.
+                </Text>
+              </>
+            ) : (
+              <Text className="mt-2 text-sm text-text-secondary">
+                Conseil indisponible pour le moment.
+              </Text>
+            )}
           </View>
         ) : null}
 
