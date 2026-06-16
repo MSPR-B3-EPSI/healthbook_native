@@ -1,27 +1,32 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCoach } from '@/features/coach/CoachProvider';
 import { exerciseImageUrl, exerciseSpecs } from '@/features/coach/labels';
-import type { ProgramExercise } from '@/features/coach/types';
+import type { CatalogExercise, ProgramExercise } from '@/features/coach/types';
 import { cardShadow } from '@/lib/shadows';
 
 /**
- * Détail d'un exercice du programme : visuel du catalogue, consignes
- * (séries/répétitions/repos/charge), muscles ciblés et équipement.
- * Données entièrement issues de la réponse weekly-program — aucun appel
- * supplémentaire nécessaire.
+ * Détail d'un exercice. Deux provenances :
+ * - depuis la **Séance** → exo du programme (consignes séries/reps/repos) ;
+ * - depuis la **Bibliothèque** → exo du catalogue (niveau, catégorie, muscles).
+ * On cherche d'abord dans le programme, puis dans le catalogue (caché).
  */
 export default function ExerciseDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { program } = useCoach();
+  const { program, catalog, ensureCatalog } = useCoach();
   const [imageFailed, setImageFailed] = useState(false);
 
-  const exercise = useMemo<ProgramExercise | null>(() => {
+  // Au cas où on arrive ici sans avoir ouvert l'onglet Exercices (deep-link).
+  useEffect(() => {
+    void ensureCatalog();
+  }, [ensureCatalog]);
+
+  const programExo = useMemo<ProgramExercise | null>(() => {
     if (!program || !id) return null;
     for (const day of program.week)
       for (const session of day.sessions)
@@ -30,7 +35,26 @@ export default function ExerciseDetailScreen() {
     return null;
   }, [program, id]);
 
-  if (!exercise) {
+  const catalogExo = useMemo<CatalogExercise | null>(() => {
+    if (programExo || !catalog || !id) return null;
+    return catalog.find((e) => e.exercise_id === id) ?? null;
+  }, [programExo, catalog, id]);
+
+  const exo = programExo ?? catalogExo;
+
+  // Pas encore trouvé et catalogue en cours de chargement → loader.
+  if (!exo && catalog === null) {
+    return (
+      <View
+        className="flex-1 items-center justify-center bg-background"
+        style={{ paddingTop: insets.top }}
+      >
+        <ActivityIndicator color="#5B2EE5" />
+      </View>
+    );
+  }
+
+  if (!exo) {
     return (
       <View
         className="flex-1 items-center justify-center bg-background px-6"
@@ -41,7 +65,7 @@ export default function ExerciseDetailScreen() {
           Exercice introuvable
         </Text>
         <Text className="mt-1 text-center text-sm text-text-secondary">
-          Cet exercice ne fait plus partie de ton programme actuel.
+          Cet exercice n’est pas dans le catalogue.
         </Text>
         <Pressable
           accessibilityRole="button"
@@ -54,8 +78,15 @@ export default function ExerciseDetailScreen() {
     );
   }
 
-  // Consignes adaptées à la famille de l'exercice (muscu / cardio / HIIT).
-  const specs = exerciseSpecs(exercise);
+  // Consignes (programme) OU repères catalogue (bibliothèque).
+  const specs = programExo
+    ? exerciseSpecs(programExo)
+    : catalogExo
+      ? [
+          { label: 'Niveau', value: catalogExo.level || '—' },
+          { label: 'Catégorie', value: catalogExo.category || '—' },
+        ]
+      : [];
 
   return (
     <View className="flex-1 bg-background">
@@ -67,13 +98,13 @@ export default function ExerciseDetailScreen() {
         <View className="h-72 bg-[#23242B]">
           {!imageFailed ? (
             <Image
-              source={exerciseImageUrl(exercise.exercise_id)}
+              source={exerciseImageUrl(exo.exercise_id)}
               style={{ width: '100%', height: '100%' }}
               contentFit="cover"
               transition={200}
               cachePolicy="memory-disk"
               onError={() => setImageFailed(true)}
-              accessibilityLabel={exercise.exercise_name}
+              accessibilityLabel={exo.exercise_name}
             />
           ) : (
             <View className="flex-1 items-center justify-center">
@@ -94,43 +125,45 @@ export default function ExerciseDetailScreen() {
 
         <View className="px-5 pt-5">
           <Text className="text-3xl font-extrabold text-text-primary">
-            {exercise.exercise_name}
+            {exo.exercise_name}
           </Text>
-          {exercise.equipment ? (
+          {exo.equipment ? (
             <View className="mt-2 flex-row items-center gap-1.5">
               <Ionicons name="construct-outline" size={14} color="#6B6B6B" />
               <Text className="text-sm capitalize text-text-secondary">
-                {exercise.equipment}
+                {exo.equipment}
               </Text>
             </View>
           ) : null}
 
-          {/* Consignes */}
-          <View className="mt-5 flex-row flex-wrap gap-3">
-            {specs.map((s) => (
-              <View
-                key={s.label}
-                className="rounded-2xl bg-surface px-4 py-3"
-                style={[{ flexBasis: '47%', flexGrow: 1 }, cardShadow]}
-              >
-                <Text className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                  {s.label}
-                </Text>
-                <Text className="mt-1 text-xl font-extrabold text-text-primary">
-                  {s.value}
-                </Text>
-              </View>
-            ))}
-          </View>
+          {/* Consignes / repères */}
+          {specs.length > 0 ? (
+            <View className="mt-5 flex-row flex-wrap gap-3">
+              {specs.map((s) => (
+                <View
+                  key={s.label}
+                  className="rounded-2xl bg-surface px-4 py-3"
+                  style={[{ flexBasis: '47%', flexGrow: 1 }, cardShadow]}
+                >
+                  <Text className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+                    {s.label}
+                  </Text>
+                  <Text className="mt-1 text-xl font-extrabold capitalize text-text-primary">
+                    {s.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
 
           {/* Muscles ciblés */}
-          {exercise.muscles_targeted.length > 0 ? (
+          {exo.muscles_targeted.length > 0 ? (
             <>
               <Text className="mb-2 mt-6 text-xs font-bold uppercase tracking-widest text-text-muted">
                 Muscles ciblés
               </Text>
               <View className="flex-row flex-wrap gap-2">
-                {exercise.muscles_targeted.map((m) => (
+                {exo.muscles_targeted.map((m) => (
                   <View
                     key={m}
                     className="rounded-full bg-coach-light px-3 py-1.5"

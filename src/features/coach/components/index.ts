@@ -1,4 +1,5 @@
 export { default as BmiGauge } from './BmiGauge';
+export { default as CatalogExerciseRow } from './CatalogExerciseRow';
 export { default as CoachButton } from './CoachButton';
 export { default as CoachHeader } from './CoachHeader';
 export { default as EquipmentTile } from './EquipmentTile';

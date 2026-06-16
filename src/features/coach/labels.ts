@@ -181,32 +181,3 @@ export function workoutTypeForSession(
   }
   return 'Strength';
 }
-
-/**
- * Catégorie de régime renvoyée par le modèle diététique → libellé FR + conseil.
- * Classes connues : Balanced / Low_Carb / Low_Sodium (fallback générique sinon).
- */
-export function dietAdvice(category: string): { titre: string; desc: string } {
-  switch (category) {
-    case 'Balanced':
-      return {
-        titre: 'Équilibré',
-        desc: 'Une répartition équilibrée des macronutriments te convient.',
-      };
-    case 'Low_Carb':
-      return {
-        titre: 'Pauvre en glucides',
-        desc: 'Réduis les glucides rapides, privilégie protéines et bonnes graisses.',
-      };
-    case 'Low_Sodium':
-      return {
-        titre: 'Pauvre en sodium',
-        desc: 'Limite le sel et les aliments transformés.',
-      };
-    default:
-      return {
-        titre: category.replace(/_/g, ' '),
-        desc: 'Conseil diététique adapté à ton profil.',
-      };
-  }
-}

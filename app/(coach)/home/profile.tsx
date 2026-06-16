@@ -12,15 +12,10 @@ import {
 } from '@/features/coach/displayNames';
 import { cardShadow } from '@/lib/shadows';
 
-/** Alerte commune des réglages non câblés (pas de backend dédié pour l'instant). */
-function comingSoon() {
-  Alert.alert('Bientôt disponible', 'Cette section arrive dans une prochaine version.');
-}
-
 /**
  * Onglet Profil — écran "Paramètres" : carte compte (Keycloak), infos
- * sportives (édition = relance de l'onboarding pré-rempli), réglages à venir
- * et zone danger (réinitialisation profil coach, déconnexion).
+ * sportives (édition = relance de l'onboarding pré-rempli) et zone danger
+ * (réinitialisation profil coach, déconnexion).
  */
 export default function CoachProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -156,45 +151,6 @@ export default function CoachProfileScreen() {
             </View>
           </View>
         ) : null}
-
-        {/* Réglages compte (sections à venir). */}
-        <View className="mt-6 rounded-3xl bg-surface px-4 py-1" style={cardShadow}>
-          <SettingRow
-            icon="lock-closed-outline"
-            iconBg="#EDE8FC"
-            iconColor="#5B2EE5"
-            title="Privée et Visibilité"
-            subtitle="Décide qui peut voir tes informations"
-            onPress={comingSoon}
-          />
-          <View className="h-px bg-border/60" />
-          <SettingRow
-            icon="notifications-outline"
-            iconBg="#EDE8FC"
-            iconColor="#5B2EE5"
-            title="Notification"
-            subtitle="Rappels de séances et alertes"
-            onPress={comingSoon}
-          />
-          <View className="h-px bg-border/60" />
-          <SettingRow
-            icon="shield-half-outline"
-            iconBg="#EDE8FC"
-            iconColor="#5B2EE5"
-            title="Sécurité du compte"
-            subtitle="2FA, changement de mot de passe"
-            onPress={comingSoon}
-          />
-          <View className="h-px bg-border/60" />
-          <SettingRow
-            icon="settings-outline"
-            iconBg="#F5F5F5"
-            iconColor="#1A1A1A"
-            title="Autres"
-            subtitle="Autres informations relatives au compte"
-            onPress={comingSoon}
-          />
-        </View>
 
         {/* Programme */}
         <View className="mt-6">

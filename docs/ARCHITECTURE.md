@@ -293,7 +293,8 @@ Toutes ces fonctions passent `baseUrl: env.coachBaseUrl`.
 | `generateWeeklyProgram(body)` | `POST /exercise-recommendation/weekly-program` | Génère + persiste le programme 7 jours (Nest → FastAPI/ML), renvoie un `programId` |
 | `getLatestProgram()` | `GET /exercise-recommendation/weekly-program/latest` | Dernier programme persisté (**404** si aucun) |
 | `predictWorkoutCalories(body)` | `POST /recommendation/workout` | Calories brûlées estimées (RandomForest) |
-| `recommendDiet(body)` | `POST /recommendation/diet` | Catégorie de régime conseillée (GradientBoosting) |
+| `getExercises(params?)` | `GET /exercise-recommendation/exercises` | Catalogue d'exercices (bibliothèque, ~873) — filtre ClickHouse, lecture seule, aucun ML |
+| `searchFoods(query)` | `GET /nutrition/foods?search=` | Recherche d'aliments → calories + macros (`daily_food.food_item`) |
 | `analyzeMeal(photo)` | `POST /vision/analyze` (multipart, champ `image`) | Reconnaissance d'aliments (modèle HF `nateraw/food`) → `predictions[]` |
 
 > Le SSO Keycloak est mutualisé : `apiFetch` injecte le **même Bearer** que pour `/api` ; seul le préfixe de path change. NGINX route `/api`, `/brain` et `/auth` vers les bons conteneurs et strip le préfixe avant de forwarder.
@@ -325,6 +326,7 @@ Univers piloté par un **contexte React** monté dans `(coach)/_layout.tsx`.
   program, generating, programError,
   ensureProgram,     // restaure (GET latest) ou génère si 404
   generateProgram,   // force une nouvelle génération
+  catalog, ensureCatalog,    // bibliothèque d'exercices (chargée une fois)
 }
 ```
 
@@ -333,7 +335,7 @@ Logique programme : `ensureProgram()` tente `getLatestProgram()` et, sur `HttpEr
 **`profile.ts`** — profil onboarding + mappings UI → API :
 
 - Type `CoachProfile = { firstName, age, weightKg, heightCm, gender, objective, equipment[], level }`, persisté en SecureStore (clé **`healthbook.coach.profile`**) via `saveCoachProfile` / `loadCoachProfile` / `clearCoachProfile`.
-- `toWeeklyProgramRequest(profile)` et `toDietRequest(profile)` construisent les corps de requête (`toDietRequest` injecte des valeurs cliniques normales par défaut — l'app ne collecte pas cholestérol/tension/glycémie).
+- `toWeeklyProgramRequest(profile)` construit le corps de la requête weekly-program.
 - Mappings **objectif** (4 UI → 3 moteur) et **matériel** (tuiles → catalogue d'exercices) :
 
   | Objectif UI | → API | | Matériel UI | → catalogue |
@@ -356,7 +358,7 @@ Logique programme : `ensureProgram()` tente `getLatestProgram()` et, sur `HttpEr
 | `dailyCalorieTarget(profile)` | BMR Mifflin-St Jeor × activité × facteur objectif |
 | `dailyProteinTarget(profile)` | 1,6–2 g/kg selon l'objectif |
 
-**Autres** : `errors.ts` (`userFacingError(err, fallback)` → messages FR), `useSessionCalories.ts`, et `components/` (`BmiGauge`, `ScanMealCard`, `MealAnalysisCard`, `OnboardingScaffold`, `WeekStrip`, `SessionHeroCard`, `EquipmentTile`, `OptionCard`, `SegmentedToggle`…).
+**Autres** : `errors.ts` (`userFacingError(err, fallback)` → messages FR), `useSessionCalories.ts`, et `components/` (`BmiGauge`, `ScanMealCard`, `MealAnalysisCard`, `OnboardingScaffold`, `WeekStrip`, `SessionHeroCard`, `CatalogExerciseRow`, `EquipmentTile`, `OptionCard`, `SegmentedToggle`…).
 
 ---
 
@@ -370,9 +372,9 @@ Logique programme : `ensureProgram()` tente `getLatestProgram()` et, sur `HttpEr
 | `env` (+ `keycloak*Url`) | `src/config/env.ts` | URLs gateway + Keycloak |
 | `listPosts` / `createPost` / `toggleLike` / `deletePost` | `src/features/publications/api.ts` | CRUD posts + likes |
 | `useCoach()` | `src/features/coach/CoachProvider.tsx` | Profil + programme du coach |
-| `generateWeeklyProgram` / `getLatestProgram` / `analyzeMeal` / `recommendDiet` | `src/features/coach/api.ts` | Appels coach IA `/brain` |
+| `generateWeeklyProgram` / `getLatestProgram` / `getExercises` / `searchFoods` / `analyzeMeal` | `src/features/coach/api.ts` | Appels coach IA `/brain` |
 | `bmi` / `dailyCalorieTarget` / `bodyFatEstimate` | `src/features/coach/metrics.ts` | Métriques santé locales |
-| `toWeeklyProgramRequest` / `toDietRequest` | `src/features/coach/profile.ts` | Mapping profil → requête API |
+| `toWeeklyProgramRequest` | `src/features/coach/profile.ts` | Mapping profil → requête weekly-program |
 | `formatRelativeTime(iso)` | `src/lib/relativeTime.ts` | Dates relatives en français |
 
 ---

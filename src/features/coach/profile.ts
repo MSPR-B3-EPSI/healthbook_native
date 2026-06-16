@@ -1,8 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
-import { bmi, dailyCalorieTarget } from './metrics';
 import type {
   ApiObjective,
-  DietRecommendationRequest,
   Gender,
   WeeklyProgramRequest,
 } from './types';
@@ -94,36 +92,6 @@ export function toWeeklyProgramRequest(p: CoachProfile): WeeklyProgramRequest {
     experience_level: p.level,
     objective: OBJECTIVE_TO_API[p.objective],
     equipment_available: equipment,
-  };
-}
-
-const ACTIVITY_BY_LEVEL: Record<
-  ExperienceLevel,
-  DietRecommendationRequest['physical_activity_level']
-> = { 1: 'Sedentary', 2: 'Moderate', 3: 'Active' };
-
-const WEEKLY_HOURS_BY_LEVEL: Record<ExperienceLevel, number> = { 1: 2, 2: 4, 3: 6 };
-
-/**
- * Construit le corps de POST /recommendation/diet depuis le profil. Les champs
- * cliniques (cholestérol/tension/glycémie/sévérité) ne sont pas collectés par
- * l'app → valeurs normales par défaut ; le reste est dérivé du profil/niveau.
- */
-export function toDietRequest(p: CoachProfile): DietRecommendationRequest {
-  return {
-    age: p.age,
-    weight_kg: p.weightKg,
-    height_cm: Math.round(p.heightCm),
-    bmi: bmi(p),
-    daily_caloric_intake: dailyCalorieTarget(p),
-    weekly_exercise_hours: WEEKLY_HOURS_BY_LEVEL[p.level],
-    gender: p.gender,
-    physical_activity_level: ACTIVITY_BY_LEVEL[p.level],
-    // Valeurs normales par défaut (champs cliniques non collectés par l'app).
-    cholesterol_mg_dl: 190,
-    blood_pressure_mmhg: 120,
-    glucose_mg_dl: 90,
-    severity: 'Mild',
   };
 }
 
