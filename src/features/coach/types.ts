@@ -141,3 +141,31 @@ export type DietRecommendationRequest = {
 
 /** Réponse : une catégorie de régime (ex. "Balanced" / "Low_Carb" / "Low_Sodium"). */
 export type DietRecommendationResponse = { diet_recommendation: string };
+
+/**
+ * Exercice du catalogue (bibliothèque) — miroir de `CatalogExerciseDto` (brain).
+ * Pas de prescription séries/reps (≠ `ProgramExercise`) : juste les métadonnées
+ * pour parcourir `exercise_db.exercise`. `muscles_targeted` aligné sur
+ * `ProgramExercise` pour réutiliser le rendu (image, filtre muscle).
+ */
+export type CatalogExercise = {
+  exercise_id: string;
+  exercise_name: string;
+  category: string;
+  equipment: string;
+  level: string;
+  muscles_targeted: string[];
+};
+
+/** Aliment du référentiel nutritionnel — miroir de `FoodDto` (brain). */
+export type FoodItem = {
+  id: number;
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbohydrates_g: number;
+  fat_g: number;
+  fiber_g: number;
+  sugars_g: number;
+  sodium_mg: number;
+};

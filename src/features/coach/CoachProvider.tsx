@@ -8,7 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { HttpError } from '@/lib/http';
-import { generateWeeklyProgram, getLatestProgram } from './api';
+import { generateWeeklyProgram, getExercises, getLatestProgram } from './api';
 import { userFacingError } from './errors';
 import {
   clearCoachProfile,
@@ -20,7 +20,7 @@ import {
   type ExperienceLevel,
   type UiObjective,
 } from './profile';
-import type { Gender, WeeklyProgram } from './types';
+import type { CatalogExercise, Gender, WeeklyProgram } from './types';
 
 // Contexte de l'univers coach, monté dans app/(coach)/_layout.tsx :
 // - profil onboarding (persisté en SecureStore, source de vérité du gate)
@@ -56,6 +56,9 @@ type CoachContextValue = {
   ensureProgram: () => Promise<void>;
   /** Force une nouvelle génération (écrase le programme courant). */
   generateProgram: () => Promise<void>;
+  /** Catalogue d'exercices (bibliothèque), chargé une fois à la demande. */
+  catalog: CatalogExercise[] | null;
+  ensureCatalog: () => Promise<void>;
 };
 
 const CoachContext = createContext<CoachContextValue | null>(null);
@@ -67,7 +70,9 @@ export function CoachProvider({ children }: { children: React.ReactNode }) {
   const [program, setProgram] = useState<WeeklyProgram | null>(null);
   const [generating, setGenerating] = useState(false);
   const [programError, setProgramError] = useState<string | null>(null);
+  const [catalog, setCatalog] = useState<CatalogExercise[] | null>(null);
   const busyRef = useRef(false);
+  const catalogBusyRef = useRef(false);
   // true = le profil vient de changer : le programme persisté côté brain ne
   // correspond plus, il faut régénérer au lieu de restaurer.
   const staleRef = useRef(false);
@@ -158,6 +163,20 @@ export function CoachProvider({ children }: { children: React.ReactNode }) {
     }
   }, [profile, runGeneration]);
 
+  // Catalogue d'exercices (bibliothèque) : chargé une fois, indépendant du
+  // programme. Échec silencieux (l'écran affiche un état vide / réessaie).
+  const ensureCatalog = useCallback(async () => {
+    if (catalog || catalogBusyRef.current) return;
+    catalogBusyRef.current = true;
+    try {
+      setCatalog(await getExercises());
+    } catch (err) {
+      if (__DEV__) console.log('[Coach] Échec chargement catalogue :', err);
+    } finally {
+      catalogBusyRef.current = false;
+    }
+  }, [catalog]);
+
   const value = useMemo<CoachContextValue>(
     () => ({
       status,
@@ -171,6 +190,8 @@ export function CoachProvider({ children }: { children: React.ReactNode }) {
       programError,
       ensureProgram,
       generateProgram,
+      catalog,
+      ensureCatalog,
     }),
     [
       status,
@@ -184,6 +205,8 @@ export function CoachProvider({ children }: { children: React.ReactNode }) {
       programError,
       ensureProgram,
       generateProgram,
+      catalog,
+      ensureCatalog,
     ],
   );
 

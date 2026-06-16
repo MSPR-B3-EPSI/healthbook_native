@@ -1,8 +1,10 @@
 import { env } from '@/config/env';
 import { apiFetch } from '@/lib/http';
 import type {
+  CatalogExercise,
   DietRecommendationRequest,
   DietRecommendationResponse,
+  FoodItem,
   WeeklyProgram,
   WeeklyProgramRequest,
   WorkoutCaloriesRequest,
@@ -104,6 +106,45 @@ export async function analyzeMeal(photo: {
   return apiFetch<VisionAnalysis>('/vision/analyze', {
     method: 'POST',
     body: form,
+    baseUrl: env.coachBaseUrl,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Catalogue d'exercices (bibliothèque) + recherche d'aliments — lecture seule.
+// Exposent la donnée ClickHouse du brain (catalogue 873 exos, référentiel
+// nutritionnel) ; aucun ML. Cf. GET /brain/exercise-recommendation/exercises
+// et GET /brain/nutrition/foods.
+// ---------------------------------------------------------------------------
+
+/**
+ * Catalogue complet d'exercices. Sans filtre, renvoie tout (~873) ; le mobile
+ * met en cache (CoachProvider) puis filtre côté client. Filtres serveur
+ * optionnels disponibles.
+ */
+export async function getExercises(params?: {
+  search?: string;
+  muscle?: string;
+  equipment?: string;
+  level?: string;
+}): Promise<CatalogExercise[]> {
+  const qs = new URLSearchParams();
+  if (params?.search) qs.set('search', params.search);
+  if (params?.muscle) qs.set('muscle', params.muscle);
+  if (params?.equipment) qs.set('equipment', params.equipment);
+  if (params?.level) qs.set('level', params.level);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return apiFetch<CatalogExercise[]>(
+    `/exercise-recommendation/exercises${suffix}`,
+    { baseUrl: env.coachBaseUrl },
+  );
+}
+
+/** Recherche d'aliments (calories + macros) dans le référentiel nutritionnel. */
+export async function searchFoods(search: string): Promise<FoodItem[]> {
+  const q = search.trim();
+  const suffix = q ? `?search=${encodeURIComponent(q)}` : '';
+  return apiFetch<FoodItem[]>(`/nutrition/foods${suffix}`, {
     baseUrl: env.coachBaseUrl,
   });
 }
