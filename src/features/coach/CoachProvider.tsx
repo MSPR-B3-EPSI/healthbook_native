@@ -18,6 +18,7 @@ import {
   type CoachProfile,
   type EquipmentKey,
   type ExperienceLevel,
+  type HealthMarkers,
   type UiObjective,
 } from './profile';
 import type { CatalogExercise, Gender, WeeklyProgram } from './types';
@@ -59,6 +60,8 @@ type CoachContextValue = {
   /** Catalogue d'exercices (bibliothèque), chargé une fois à la demande. */
   catalog: CatalogExercise[] | null;
   ensureCatalog: () => Promise<void>;
+  /** Met à jour les marqueurs cliniques (reco diète) sans toucher au programme. */
+  updateHealth: (health: HealthMarkers) => Promise<void>;
 };
 
 const CoachContext = createContext<CoachContextValue | null>(null);
@@ -109,6 +112,18 @@ export function CoachProvider({ children }: { children: React.ReactNode }) {
     setProgramError(null);
     staleRef.current = false;
   }, []);
+
+  // Met à jour les marqueurs cliniques et persiste — sans invalider le programme
+  // (≠ completeOnboarding). Le profil change → la carte diète se recharge.
+  const updateHealth = useCallback(
+    async (health: HealthMarkers) => {
+      if (!profile) return;
+      const next = { ...profile, health };
+      await saveCoachProfile(next);
+      setProfile(next);
+    },
+    [profile],
+  );
 
   /** Génération via le brain (POST). Partagé par ensureProgram/generateProgram. */
   const runGeneration = useCallback(async (p: CoachProfile) => {
@@ -192,6 +207,7 @@ export function CoachProvider({ children }: { children: React.ReactNode }) {
       generateProgram,
       catalog,
       ensureCatalog,
+      updateHealth,
     }),
     [
       status,
@@ -207,6 +223,7 @@ export function CoachProvider({ children }: { children: React.ReactNode }) {
       generateProgram,
       catalog,
       ensureCatalog,
+      updateHealth,
     ],
   );
 

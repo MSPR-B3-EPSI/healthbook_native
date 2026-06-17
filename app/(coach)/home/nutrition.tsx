@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -14,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthProvider';
 import {
   analyzeMeal,
-  searchFoods,
+  recommendDiet,
   type VisionPrediction,
 } from '@/features/coach/api';
 import { useCoach } from '@/features/coach/CoachProvider';
@@ -24,12 +25,39 @@ import {
   ScanMealCard,
 } from '@/features/coach/components';
 import { userFacingError } from '@/features/coach/errors';
+import { dietAdvice } from '@/features/coach/labels';
 import {
   dailyCalorieTarget,
   dailyProteinTarget,
 } from '@/features/coach/metrics';
-import type { FoodItem } from '@/features/coach/types';
+import { DEFAULT_HEALTH_MARKERS, toDietRequest } from '@/features/coach/profile';
 import { floatingShadow } from '@/lib/shadows';
+
+/** Champ numérique de la carte « Mes données santé ». */
+function HealthField({
+  label,
+  value,
+  onChangeText,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+}) {
+  return (
+    <View className="mt-3">
+      <Text className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+        {label}
+      </Text>
+      <TextInput
+        className="mt-1 rounded-xl bg-background px-4 py-3 text-base text-text-primary"
+        value={value}
+        onChangeText={onChangeText}
+        keyboardType="numeric"
+        placeholderTextColor="#9AA0A6"
+      />
+    </View>
+  );
+}
 
 /**
  * Onglet Nutrition : scan de plat (photo → POST /brain/vision/analyze) et
@@ -39,46 +67,70 @@ import { floatingShadow } from '@/lib/shadows';
 export default function CoachNutritionScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { profile } = useCoach();
+  const { profile, updateHealth } = useCoach();
 
   const [scanUri, setScanUri] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<VisionPrediction[] | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
 
-  // Recherche d'aliment (référentiel brain) — calories + macros réelles.
-  const [foodQuery, setFoodQuery] = useState('');
-  const [foods, setFoods] = useState<FoodItem[]>([]);
-  const [foodLoading, setFoodLoading] = useState(false);
+  // Conseil diététique IA (modèle du brain) — chargé une fois au montage depuis
+  // le profil. Échec silencieux : la carte affiche juste "indisponible".
+  const [diet, setDiet] = useState<string | null>(null);
+  const [dietLoading, setDietLoading] = useState(false);
 
   useEffect(() => {
-    const q = foodQuery.trim();
-    if (!q) {
-      setFoods([]);
-      setFoodLoading(false);
-      return;
-    }
+    if (!profile) return;
     let cancelled = false;
-    setFoodLoading(true);
-    // Debounce : on attend une pause de frappe avant d'interroger le backend.
-    const timer = setTimeout(() => {
-      searchFoods(q)
-        .then((res) => {
-          if (!cancelled) setFoods(res);
-        })
-        .catch((err) => {
-          if (__DEV__) console.log('[Coach] Recherche aliment échouée :', err);
-          if (!cancelled) setFoods([]);
-        })
-        .finally(() => {
-          if (!cancelled) setFoodLoading(false);
-        });
-    }, 300);
+    setDietLoading(true);
+    recommendDiet(toDietRequest(profile))
+      .then((r) => {
+        if (!cancelled) setDiet(r.diet_recommendation);
+      })
+      .catch((err) => {
+        if (__DEV__) console.log('[Coach] Reco diète indisponible :', err);
+      })
+      .finally(() => {
+        if (!cancelled) setDietLoading(false);
+      });
     return () => {
       cancelled = true;
-      clearTimeout(timer);
     };
-  }, [foodQuery]);
+  }, [profile]);
+
+  // Marqueurs cliniques éditables (ce qui fait vraiment varier la reco diète).
+  const saved = profile?.health ?? DEFAULT_HEALTH_MARKERS;
+  const [chol, setChol] = useState(String(saved.cholesterolMgDl));
+  const [bp, setBp] = useState(String(saved.bloodPressureMmhg));
+  const [glu, setGlu] = useState(String(saved.glucoseMgDl));
+  const [savingHealth, setSavingHealth] = useState(false);
+
+  // Re-synchronise le formulaire quand le profil chargé/édité change.
+  useEffect(() => {
+    const h = profile?.health ?? DEFAULT_HEALTH_MARKERS;
+    setChol(String(h.cholesterolMgDl));
+    setBp(String(h.bloodPressureMmhg));
+    setGlu(String(h.glucoseMgDl));
+  }, [profile?.health]);
+
+  const onSaveHealth = async () => {
+    const toNum = (s: string, fallback: number) => {
+      const n = Number(s.replace(',', '.'));
+      return Number.isFinite(n) && n > 0 ? Math.round(n) : fallback;
+    };
+    setSavingHealth(true);
+    try {
+      await updateHealth({
+        cholesterolMgDl: toNum(chol, DEFAULT_HEALTH_MARKERS.cholesterolMgDl),
+        bloodPressureMmhg: toNum(bp, DEFAULT_HEALTH_MARKERS.bloodPressureMmhg),
+        glucoseMgDl: toNum(glu, DEFAULT_HEALTH_MARKERS.glucoseMgDl),
+        // Sévérité = artefact clinique sans sens fitness → figée à "Mild".
+        severity: 'Mild',
+      });
+    } finally {
+      setSavingHealth(false);
+    }
+  };
 
   const runAnalysis = async (asset: ImagePicker.ImagePickerAsset) => {
     setScanning(true);
@@ -202,54 +254,77 @@ export default function CoachNutritionScreen() {
           </View>
         ) : null}
 
-        {/* Recherche d'aliment — calories + macros réelles (référentiel brain). */}
-        <View className="mt-5 rounded-3xl bg-surface p-5" style={floatingShadow}>
-          <Text className="text-[11px] font-bold uppercase tracking-widest text-text-muted">
-            Chercher un aliment
-          </Text>
-          <View className="mt-3 flex-row items-center gap-2 rounded-2xl bg-background px-4">
-            <Ionicons name="search-outline" size={18} color="#9AA0A6" />
-            <TextInput
-              className="flex-1 py-3 text-base text-text-primary"
-              placeholder="Ex: poulet, riz, banane…"
-              placeholderTextColor="#9AA0A6"
-              value={foodQuery}
-              onChangeText={setFoodQuery}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {foodLoading ? <ActivityIndicator color="#9AA0A6" /> : null}
-          </View>
-
-          {foods.map((f) => (
-            <View
-              key={f.id}
-              className="mt-3 flex-row items-center justify-between border-t border-border/60 pt-3"
-            >
-              <View className="flex-1 pr-3">
-                <Text
-                  className="text-base font-semibold capitalize text-text-primary"
-                  numberOfLines={1}
-                >
-                  {f.name}
-                </Text>
-                <Text className="mt-0.5 text-xs text-text-muted">
-                  P {Math.round(f.protein_g)}g · G{' '}
-                  {Math.round(f.carbohydrates_g)}g · L {Math.round(f.fat_g)}g
-                </Text>
-              </View>
-              <Text className="text-base font-extrabold text-coach">
-                {f.calories} kcal
-              </Text>
-            </View>
-          ))}
-
-          {foodQuery.trim() && !foodLoading && foods.length === 0 ? (
-            <Text className="mt-3 text-sm text-text-secondary">
-              Aucun aliment trouvé.
+        {/* Conseil diététique IA (modèle du brain), à partir du profil. */}
+        {profile ? (
+          <View
+            className="mt-5 rounded-3xl bg-surface p-5"
+            style={floatingShadow}
+          >
+            <Text className="text-[11px] font-bold uppercase tracking-widest text-text-muted">
+              Conseil diététique IA
             </Text>
-          ) : null}
-        </View>
+            {dietLoading ? (
+              <ActivityIndicator className="mt-3 self-start" color="#9AA0A6" />
+            ) : diet ? (
+              <>
+                <Text className="mt-2 text-2xl font-extrabold text-text-primary">
+                  {dietAdvice(diet).titre}
+                </Text>
+                <Text className="mt-1 text-sm text-text-secondary">
+                  {dietAdvice(diet).desc}
+                </Text>
+                <Text className="mt-3 text-xs text-text-muted">
+                  Conseil indicatif basé sur ton profil — ne remplace pas un avis
+                  médical.
+                </Text>
+              </>
+            ) : (
+              <Text className="mt-2 text-sm text-text-secondary">
+                Conseil indisponible pour le moment.
+              </Text>
+            )}
+          </View>
+        ) : null}
+
+        {/* Données santé éditables — ce qui fait varier la reco diète IA. */}
+        {profile ? (
+          <View className="mt-5 rounded-3xl bg-surface p-5" style={floatingShadow}>
+            <Text className="text-[11px] font-bold uppercase tracking-widest text-text-muted">
+              Mes données santé
+            </Text>
+            <Text className="mt-1 text-xs text-text-secondary">
+              Renseigne tes vraies valeurs : la reco diététique IA s&apos;adapte.
+            </Text>
+
+            <HealthField
+              label="Cholestérol (mg/dL)"
+              value={chol}
+              onChangeText={setChol}
+            />
+            <HealthField
+              label="Tension artérielle (mmHg)"
+              value={bp}
+              onChangeText={setBp}
+            />
+            <HealthField
+              label="Glycémie (mg/dL)"
+              value={glu}
+              onChangeText={setGlu}
+            />
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void onSaveHealth()}
+              disabled={savingHealth}
+              className="mt-4 rounded-2xl bg-coach py-3"
+              style={({ pressed }) => (pressed ? { opacity: 0.9 } : null)}
+            >
+              <Text className="text-center text-base font-bold text-white">
+                {savingHealth ? 'Mise à jour…' : 'Mettre à jour la reco'}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         {scanUri && predictions ? (
           <View className="mt-5">

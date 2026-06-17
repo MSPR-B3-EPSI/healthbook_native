@@ -2,7 +2,8 @@ import { env } from '@/config/env';
 import { apiFetch } from '@/lib/http';
 import type {
   CatalogExercise,
-  FoodItem,
+  DietRecommendationRequest,
+  DietRecommendationResponse,
   WeeklyProgram,
   WeeklyProgramRequest,
   WorkoutCaloriesRequest,
@@ -61,6 +62,21 @@ export async function predictWorkoutCalories(
   });
 }
 
+/**
+ * Recommandation diététique : prédit une catégorie de régime à partir du profil
+ * santé (modèle GradientBoosting du brain). Conseil indicatif — le modèle est
+ * entraîné sur un dataset clinique.
+ */
+export async function recommendDiet(
+  body: DietRecommendationRequest,
+): Promise<DietRecommendationResponse> {
+  return apiFetch<DietRecommendationResponse>('/recommendation/diet', {
+    method: 'POST',
+    body,
+    baseUrl: env.coachBaseUrl,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Vision — analyse photo de repas
 // ---------------------------------------------------------------------------
@@ -94,10 +110,9 @@ export async function analyzeMeal(photo: {
 }
 
 // ---------------------------------------------------------------------------
-// Catalogue d'exercices (bibliothèque) + recherche d'aliments — lecture seule.
-// Exposent la donnée ClickHouse du brain (catalogue 873 exos, référentiel
-// nutritionnel) ; aucun ML. Cf. GET /brain/exercise-recommendation/exercises
-// et GET /brain/nutrition/foods.
+// Catalogue d'exercices (bibliothèque) — lecture seule, expose la donnée
+// ClickHouse du brain (catalogue 873 exos) ; aucun ML.
+// Cf. GET /brain/exercise-recommendation/exercises.
 // ---------------------------------------------------------------------------
 
 /**
@@ -121,13 +136,4 @@ export async function getExercises(params?: {
     `/exercise-recommendation/exercises${suffix}`,
     { baseUrl: env.coachBaseUrl },
   );
-}
-
-/** Recherche d'aliments (calories + macros) dans le référentiel nutritionnel. */
-export async function searchFoods(search: string): Promise<FoodItem[]> {
-  const q = search.trim();
-  const suffix = q ? `?search=${encodeURIComponent(q)}` : '';
-  return apiFetch<FoodItem[]>(`/nutrition/foods${suffix}`, {
-    baseUrl: env.coachBaseUrl,
-  });
 }

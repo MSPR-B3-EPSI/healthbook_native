@@ -1,6 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
+import { bmi, dailyCalorieTarget } from './metrics';
 import type {
   ApiObjective,
+  DietRecommendationRequest,
   Gender,
   WeeklyProgramRequest,
 } from './types';
@@ -26,6 +28,27 @@ export type EquipmentKey =
 /** 1=débutant, 2=intermédiaire, 3=avancé (miroir de experience_level). */
 export type ExperienceLevel = 1 | 2 | 3;
 
+/**
+ * Marqueurs cliniques utilisés par le modèle diététique (POST /recommendation/diet).
+ * Non collectés à l'onboarding → éditables depuis l'écran Nutrition. Ce sont eux
+ * qui pilotent la sortie du modèle : tant qu'ils étaient figés, la reco l'était
+ * aussi.
+ */
+export type HealthMarkers = {
+  cholesterolMgDl: number;
+  bloodPressureMmhg: number;
+  glucoseMgDl: number;
+  severity: 'Mild' | 'Moderate' | 'Severe';
+};
+
+/** Valeurs « normales » par défaut si l'utilisateur n'a rien renseigné. */
+export const DEFAULT_HEALTH_MARKERS: HealthMarkers = {
+  cholesterolMgDl: 190,
+  bloodPressureMmhg: 120,
+  glucoseMgDl: 90,
+  severity: 'Mild',
+};
+
 export type CoachProfile = {
   firstName: string;
   age: number;
@@ -35,6 +58,8 @@ export type CoachProfile = {
   objective: UiObjective;
   equipment: EquipmentKey[];
   level: ExperienceLevel;
+  /** Marqueurs cliniques éditables (sinon DEFAULT_HEALTH_MARKERS). */
+  health?: HealthMarkers;
 };
 
 // ---------------------------------------------------------------------------
@@ -92,6 +117,37 @@ export function toWeeklyProgramRequest(p: CoachProfile): WeeklyProgramRequest {
     experience_level: p.level,
     objective: OBJECTIVE_TO_API[p.objective],
     equipment_available: equipment,
+  };
+}
+
+const ACTIVITY_BY_LEVEL: Record<
+  ExperienceLevel,
+  DietRecommendationRequest['physical_activity_level']
+> = { 1: 'Sedentary', 2: 'Moderate', 3: 'Active' };
+
+const WEEKLY_HOURS_BY_LEVEL: Record<ExperienceLevel, number> = { 1: 2, 2: 4, 3: 6 };
+
+/**
+ * Construit le corps de POST /recommendation/diet depuis le profil. Les champs
+ * cliniques (cholestérol/tension/glycémie/sévérité) viennent de `profile.health`
+ * (éditables sur l'écran Nutrition), sinon valeurs normales par défaut ; le reste
+ * est dérivé du profil/niveau.
+ */
+export function toDietRequest(p: CoachProfile): DietRecommendationRequest {
+  const h = p.health ?? DEFAULT_HEALTH_MARKERS;
+  return {
+    age: p.age,
+    weight_kg: p.weightKg,
+    height_cm: Math.round(p.heightCm),
+    bmi: bmi(p),
+    daily_caloric_intake: dailyCalorieTarget(p),
+    weekly_exercise_hours: WEEKLY_HOURS_BY_LEVEL[p.level],
+    gender: p.gender,
+    physical_activity_level: ACTIVITY_BY_LEVEL[p.level],
+    cholesterol_mg_dl: h.cholesterolMgDl,
+    blood_pressure_mmhg: h.bloodPressureMmhg,
+    glucose_mg_dl: h.glucoseMgDl,
+    severity: h.severity,
   };
 }
 
