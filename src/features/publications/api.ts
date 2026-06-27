@@ -1,4 +1,5 @@
 import { apiFetch } from '@/lib/http';
+import { fileFormData, type MediaFile } from '@/lib/upload';
 
 export type Post = {
   id: string;
@@ -12,15 +13,15 @@ export type Post = {
   commentsCount: number;
 };
 
-type PostListResponse = {
-  data: Post[];
+export type Paginated<T> = {
+  data: T[];
   total: number;
   page: number;
   limit: number;
 };
 
 export async function listPosts(): Promise<Post[]> {
-  const res = await apiFetch<PostListResponse>('/post');
+  const res = await apiFetch<Paginated<Post>>('/post');
   return res.data;
 }
 
@@ -30,7 +31,7 @@ export async function listPostsByAuthor(
   authorId: string,
   limit = 50,
 ): Promise<PostListResult> {
-  const res = await apiFetch<PostListResponse>(
+  const res = await apiFetch<Paginated<Post>>(
     `/post?authorId=${encodeURIComponent(authorId)}&limit=${limit}`,
   );
   return { posts: res.data, total: res.total };
@@ -43,11 +44,25 @@ export async function getPost(id: string): Promise<Post> {
 type CreatePostInput = {
   title: string;
   content: string;
-  mediaUrl?: string;
 };
 
 export async function createPost(input: CreatePostInput): Promise<Post> {
   return apiFetch<Post>('/post', { method: 'POST', body: input });
+}
+
+/** Attache (ou remplace) le média d'un post via upload multipart. */
+export async function uploadPostMedia(
+  postId: string,
+  file: MediaFile,
+): Promise<Post> {
+  return apiFetch<Post>(`/post/${postId}/media`, {
+    method: 'POST',
+    body: fileFormData(file),
+  });
+}
+
+export async function deletePostMedia(postId: string): Promise<Post> {
+  return apiFetch<Post>(`/post/${postId}/media`, { method: 'DELETE' });
 }
 
 export async function deletePost(postId: string): Promise<void> {
@@ -60,32 +75,63 @@ export async function toggleLike(postId: string): Promise<ToggleLikeResult> {
   return apiFetch<ToggleLikeResult>(`/post/like/${postId}`, { method: 'POST' });
 }
 
-// --- Commentaires : API backend en 501. Stub local, signatures finales pour
-// brancher plus tard (remplacer le corps par apiFetch sans toucher aux appels). ---
+// --- Commentaires (backend prêt) ---
 
 export type Comment = {
   id: string;
   postId: string;
-  authorId: string;
-  authorLabel?: string;
   content: string;
+  authorId: string;
   createdAt: string;
+  updatedAt: string;
+  likesCount: number;
 };
 
-export async function listComments(postId: string): Promise<Comment[]> {
-  // TODO (backend prêt) :
-  // const res = await apiFetch<{ data: Comment[] }>(`/comment?postId=${postId}`);
-  // return res.data;
-  void postId;
-  return [];
+export type CommentSortBy = 'createdAt' | 'updatedAt' | 'likes';
+export type SortOrder = 'asc' | 'desc';
+
+export type ListCommentsOptions = {
+  search?: string;
+  sortBy?: CommentSortBy;
+  sortOrder?: SortOrder;
+  page?: number;
+  limit?: number;
+};
+
+export async function listComments(
+  postId: string,
+  opts: ListCommentsOptions = {},
+): Promise<Paginated<Comment>> {
+  const params = new URLSearchParams({ postId });
+  if (opts.search) params.set('search', opts.search);
+  if (opts.sortBy) params.set('sortBy', opts.sortBy);
+  if (opts.sortOrder) params.set('sortOrder', opts.sortOrder);
+  if (opts.page) params.set('page', String(opts.page));
+  if (opts.limit) params.set('limit', String(opts.limit));
+  return apiFetch<Paginated<Comment>>(`/comment?${params.toString()}`);
 }
 
 export async function createComment(input: {
   postId: string;
   content: string;
 }): Promise<Comment> {
-  // TODO (backend prêt) :
-  // return apiFetch<Comment>('/comment', { method: 'POST', body: input });
-  void input;
-  throw new Error('LOCAL_ONLY');
+  return apiFetch<Comment>('/comment', { method: 'POST', body: input });
+}
+
+export async function updateComment(
+  id: string,
+  content: string,
+): Promise<Comment> {
+  return apiFetch<Comment>(`/comment/${id}`, {
+    method: 'PATCH',
+    body: { content },
+  });
+}
+
+export async function deleteComment(id: string): Promise<void> {
+  await apiFetch<{ deleted: boolean }>(`/comment/${id}`, { method: 'DELETE' });
+}
+
+export async function toggleCommentLike(id: string): Promise<ToggleLikeResult> {
+  return apiFetch<ToggleLikeResult>(`/comment/like/${id}`, { method: 'POST' });
 }

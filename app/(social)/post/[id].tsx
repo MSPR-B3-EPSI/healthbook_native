@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,6 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from '@/components';
 import { useAuth } from '@/features/auth/AuthProvider';
 import {
+  createComment,
+  deleteComment,
   getPost,
   listComments,
   type Comment,
@@ -21,6 +24,7 @@ import {
 import CommentComposer from '@/features/publications/components/CommentComposer';
 import CommentItem from '@/features/publications/components/CommentItem';
 import PostCard from '@/features/publications/components/PostCard';
+import { useCommentLikes } from '@/features/publications/useCommentLikes';
 import { usePostLikes } from '@/features/publications/usePostLikes';
 import { HttpError } from '@/lib/http';
 
@@ -30,11 +34,13 @@ export default function PostDetailScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const likes = usePostLikes();
+  const commentLikes = useCommentLikes();
 
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -43,7 +49,7 @@ export default function PostDetailScreen() {
         const [p, c] = await Promise.all([getPost(id), listComments(id)]);
         if (!active) return;
         setPost(p);
-        setComments(c);
+        setComments(c.data);
       } catch (err) {
         if (!active) return;
         setError(
@@ -60,21 +66,75 @@ export default function PostDetailScreen() {
     };
   }, [id]);
 
+  const authorLabel = useCallback(
+    (authorId: string) => (authorId === user?.sub ? 'Toi' : 'Membre Healthbook'),
+    [user?.sub],
+  );
+
   const addComment = useCallback(
     (content: string) => {
-      const newComment: Comment = {
-        id: `local-${Date.now()}`,
+      const tempId = `local-${Date.now()}`;
+      const optimistic: Comment = {
+        id: tempId,
         postId: id,
         authorId: user?.sub ?? 'me',
-        authorLabel: 'Toi',
         content,
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        likesCount: 0,
       };
-      // TODO : remplacer par createComment(...) quand le backend != 501.
-      setComments((prev) => [...prev, newComment]);
+      setComments((prev) => [...prev, optimistic]);
+      setPost((p) => (p ? { ...p, commentsCount: p.commentsCount + 1 } : p));
+      setSubmitting(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+
+      void (async () => {
+        try {
+          const saved = await createComment({ postId: id, content });
+          setComments((prev) =>
+            prev.map((c) => (c.id === tempId ? saved : c)),
+          );
+        } catch (err) {
+          // Rollback.
+          setComments((prev) => prev.filter((c) => c.id !== tempId));
+          setPost((p) =>
+            p ? { ...p, commentsCount: Math.max(0, p.commentsCount - 1) } : p,
+          );
+          const msg =
+            err instanceof HttpError
+              ? `Commentaire refusé (${err.status}).`
+              : 'Vérifie ta connexion.';
+          Alert.alert('Oups', msg);
+        } finally {
+          setSubmitting(false);
+        }
+      })();
     },
     [id, user?.sub],
+  );
+
+  const removeComment = useCallback(
+    (comment: Comment) => {
+      const snapshot = comments;
+      setComments((prev) => prev.filter((c) => c.id !== comment.id));
+      setPost((p) =>
+        p ? { ...p, commentsCount: Math.max(0, p.commentsCount - 1) } : p,
+      );
+      void (async () => {
+        try {
+          await deleteComment(comment.id);
+        } catch (err) {
+          setComments(snapshot);
+          setPost((p) => (p ? { ...p, commentsCount: snapshot.length } : p));
+          const msg =
+            err instanceof HttpError
+              ? `Suppression impossible (${err.status}).`
+              : 'Vérifie ta connexion.';
+          Alert.alert('Oups', msg);
+        }
+      })();
+    },
+    [comments],
   );
 
   return (
@@ -133,12 +193,23 @@ export default function PostDetailScreen() {
                   Aucun commentaire pour l’instant. Sois le premier !
                 </Text>
               ) : (
-                comments.map((c) => <CommentItem key={c.id} comment={c} />)
+                comments.map((c) => (
+                  <CommentItem
+                    key={c.id}
+                    comment={c}
+                    authorLabel={authorLabel(c.authorId)}
+                    isMine={c.authorId === user?.sub}
+                    liked={commentLikes.isLiked(c.id)}
+                    likeCount={commentLikes.countFor(c)}
+                    onToggleLike={() => commentLikes.toggle(c)}
+                    onDelete={() => removeComment(c)}
+                  />
+                ))
               )}
             </ScrollView>
 
             <View style={{ paddingBottom: insets.bottom }}>
-              <CommentComposer onSubmit={addComment} />
+              <CommentComposer onSubmit={addComment} submitting={submitting} />
             </View>
           </>
         )}
