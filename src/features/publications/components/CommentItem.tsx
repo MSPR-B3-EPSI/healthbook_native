@@ -1,14 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Avatar } from '@/components';
+import { profileLabel, useUser } from '@/features/users/useUser';
 import { formatRelativeTime } from '@/lib/relativeTime';
 import type { Comment } from '../api';
 import LikeButton from './LikeButton';
 
 type CommentItemProps = {
   comment: Comment;
-  authorLabel: string;
   isMine: boolean;
   liked: boolean;
   likeCount: number;
@@ -18,21 +19,33 @@ type CommentItemProps = {
 
 export default function CommentItem({
   comment,
-  authorLabel,
   isMine,
   liked,
   likeCount,
   onToggleLike,
   onDelete,
 }: CommentItemProps) {
+  const router = useRouter();
+  const author = useUser(comment.authorId);
+  const label = profileLabel(author, isMine ? 'Toi' : 'Membre Healthbook');
+  const openAuthor = () => router.push(`/user/${comment.authorId}`);
+
   return (
     <View className="flex-row py-3">
-      <Avatar size={32} name={authorLabel} />
+      <Pressable onPress={openAuthor} hitSlop={4}>
+        <Avatar
+          size={32}
+          uri={author?.profilePictureUrl ?? undefined}
+          name={label}
+        />
+      </Pressable>
       <View className="ml-3 flex-1">
         <View className="flex-row items-center">
-          <Text className="text-sm font-semibold text-text-primary">
-            {authorLabel}
-          </Text>
+          <Pressable onPress={openAuthor} hitSlop={4}>
+            <Text className="text-sm font-semibold text-text-primary">
+              {label}
+            </Text>
+          </Pressable>
           <Text className="ml-2 text-xs text-text-muted">
             {formatRelativeTime(comment.createdAt)}
           </Text>

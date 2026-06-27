@@ -66,11 +66,6 @@ export default function PostDetailScreen() {
     };
   }, [id]);
 
-  const authorLabel = useCallback(
-    (authorId: string) => (authorId === user?.sub ? 'Toi' : 'Membre Healthbook'),
-    [user?.sub],
-  );
-
   const addComment = useCallback(
     (content: string) => {
       const tempId = `local-${Date.now()}`;
@@ -197,7 +192,6 @@ export default function PostDetailScreen() {
                   <CommentItem
                     key={c.id}
                     comment={c}
-                    authorLabel={authorLabel(c.authorId)}
                     isMine={c.authorId === user?.sub}
                     liked={commentLikes.isLiked(c.id)}
                     likeCount={commentLikes.countFor(c)}

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Avatar, Card, IconButton } from '@/components';
+import { profileLabel, useUser } from '@/features/users/useUser';
 import { formatRelativeTime } from '@/lib/relativeTime';
 import { cardShadow } from '@/lib/shadows';
 import type { Post } from '../api';
@@ -36,7 +37,9 @@ export default function PostCard({
 }: PostCardProps) {
   const router = useRouter();
   const [mediaFailed, setMediaFailed] = useState(false);
-  const authorLabel = isMine ? 'Toi' : 'Membre Healthbook';
+  const author = useUser(post.authorId);
+  const authorLabel = profileLabel(author, isMine ? 'Toi' : 'Membre Healthbook');
+  const openAuthor = () => router.push(`/user/${post.authorId}`);
 
   // Chemin agnostique au groupe de routes : les groupes (parenthèses) sont
   // transparents dans l'URL → marche que le groupe s'appelle (app) ou (social).
@@ -52,13 +55,25 @@ export default function PostCard({
   const body = (
     <Card className="mb-3" style={cardShadow}>
       <View className="flex-row items-center">
-        <Avatar size={40} name={authorLabel} />
-        <View className="ml-3 flex-1">
-          <Text className="font-semibold text-text-primary">{authorLabel}</Text>
-          <Text className="text-xs text-text-muted">
-            {formatRelativeTime(post.createdAt)}
-          </Text>
-        </View>
+        <Pressable
+          onPress={openAuthor}
+          hitSlop={4}
+          className="flex-1 flex-row items-center"
+        >
+          <Avatar
+            size={40}
+            uri={author?.profilePictureUrl ?? undefined}
+            name={authorLabel}
+          />
+          <View className="ml-3 flex-1">
+            <Text className="font-semibold text-text-primary">
+              {authorLabel}
+            </Text>
+            <Text className="text-xs text-text-muted">
+              {formatRelativeTime(post.createdAt)}
+            </Text>
+          </View>
+        </Pressable>
         {isMine && onDelete ? (
           <IconButton
             name="ellipsis-horizontal"

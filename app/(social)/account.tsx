@@ -11,37 +11,26 @@ import {
 } from '@/features/publications/api';
 import PostCard from '@/features/publications/components/PostCard';
 import { usePostLikes } from '@/features/publications/usePostLikes';
-import { apiFetch, HttpError } from '@/lib/http';
-
-type WhoamiResponse = {
-  dbuser: {
-    keycloakId: string;
-    email: string | null;
-    username: string | null;
-    displayName: string | null;
-    profilePictureUrl: string | null;
-    createdAt: string;
-    updatedAt: string;
-  };
-};
+import { getMe, type Profile } from '@/features/users/api';
+import { HttpError } from '@/lib/http';
 
 export default function AccountScreen() {
   const { user, logout } = useAuth();
   const likes = usePostLikes();
-  const [profile, setProfile] = useState<WhoamiResponse | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoadError(null);
     try {
-      const [who, mine] = await Promise.all([
-        apiFetch<WhoamiResponse>('/status/whoami'),
+      const [me, mine] = await Promise.all([
+        getMe(),
         user?.sub
           ? listPostsByAuthor(user.sub)
           : Promise.resolve({ posts: [], total: 0 }),
       ]);
-      setProfile(who);
+      setProfile(me);
       setPosts(mine.posts);
     } catch (err) {
       if (err instanceof HttpError) setLoadError(`Erreur API (${err.status})`);
@@ -82,8 +71,8 @@ export default function AccountScreen() {
     }
   };
 
-  const db = profile?.dbuser;
-  const displayName = db?.displayName || user?.username || 'Utilisateur';
+  const displayName = profile?.displayName || user?.username || 'Utilisateur';
+  const email = profile?.email ?? user?.email;
   const likesReceived = posts.reduce((sum, p) => sum + p.likesCount, 0);
 
   return (
@@ -93,7 +82,11 @@ export default function AccountScreen() {
         contentContainerStyle={{ paddingBottom: 24 }}
       >
         <View className="mt-2 items-center">
-          <Avatar size={96} uri={db?.profilePictureUrl} name={displayName} />
+          <Avatar
+            size={96}
+            uri={profile?.profilePictureUrl ?? undefined}
+            name={displayName}
+          />
           <Text className="mt-3 text-2xl font-bold text-text-primary">
             {displayName}
           </Text>
@@ -102,9 +95,21 @@ export default function AccountScreen() {
               @{user.username}
             </Text>
           ) : null}
-          {user?.email ? (
-            <Text className="mt-0.5 text-sm text-text-muted">{user.email}</Text>
+          {email ? (
+            <Text className="mt-0.5 text-sm text-text-muted">{email}</Text>
           ) : null}
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.navigate('/profile/edit')}
+            className="mt-4 flex-row items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5"
+            style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
+          >
+            <Ionicons name="create-outline" size={18} color="#1A1A1A" />
+            <Text className="text-sm font-semibold text-text-primary">
+              Éditer le profil
+            </Text>
+          </Pressable>
         </View>
 
         <View className="mt-5 flex-row justify-center gap-3">
@@ -157,10 +162,10 @@ export default function AccountScreen() {
           <Divider />
           <InfoRow
             label="Membre depuis"
-            value={db ? formatDate(db.createdAt) : '—'}
+            value={profile ? formatDate(profile.createdAt) : '—'}
           />
           <Divider />
-          <InfoRow label="ID Keycloak" value={db?.keycloakId ?? '—'} mono />
+          <InfoRow label="ID Keycloak" value={profile?.keycloakId ?? '—'} mono />
         </Card>
 
         <Pressable
