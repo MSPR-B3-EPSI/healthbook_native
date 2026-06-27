@@ -31,7 +31,14 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Healthbook accède à tes photos pour illustrer tes publications et ton profil.",
+          "cameraPermission": "Healthbook accède à la caméra pour prendre une photo de tes publications et de ton profil."
+        }
+      ]
     ],
     "extra": {
       "gatewayHost": null,
