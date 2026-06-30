@@ -54,11 +54,13 @@ export type PostListResult = { posts: Post[]; total: number };
 
 export async function listPostsByAuthor(
   authorId: string,
-  limit = 50,
+  opts: { page?: number; limit?: number } = {},
 ): Promise<PostListResult> {
-  const res = await apiFetch<Paginated<Post>>(
-    `/post?authorId=${encodeURIComponent(authorId)}&limit=${limit}`,
-  );
+  const res = await listPosts({
+    authorId,
+    page: opts.page,
+    limit: opts.limit,
+  });
   return { posts: res.data, total: res.total };
 }
 

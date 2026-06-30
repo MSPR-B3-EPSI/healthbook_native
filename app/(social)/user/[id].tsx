@@ -1,6 +1,12 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Card, IconButton, StatPill } from '@/components';
 import { listPostsByAuthor, type Post } from '@/features/publications/api';
@@ -8,6 +14,8 @@ import PostCard from '@/features/publications/components/PostCard';
 import { usePostLikes } from '@/features/publications/usePostLikes';
 import { getUser, type Profile } from '@/features/users/api';
 import { HttpError } from '@/lib/http';
+
+const PROFILE_PAGE_SIZE = 10;
 
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,6 +25,9 @@ export default function UserProfileScreen() {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,11 +37,12 @@ export default function UserProfileScreen() {
       try {
         const [p, mine] = await Promise.all([
           getUser(id),
-          listPostsByAuthor(id),
+          listPostsByAuthor(id, { page: 1, limit: PROFILE_PAGE_SIZE }),
         ]);
         if (!active) return;
         setProfile(p);
         setPosts(mine.posts);
+        setTotal(mine.total);
       } catch (err) {
         if (active)
           setError(
@@ -46,6 +58,25 @@ export default function UserProfileScreen() {
       active = false;
     };
   }, [id]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || posts.length >= total) return;
+    setLoadingMore(true);
+    try {
+      const next = page + 1;
+      const res = await listPostsByAuthor(id, {
+        page: next,
+        limit: PROFILE_PAGE_SIZE,
+      });
+      setTotal(res.total);
+      setPage(next);
+      setPosts((prev) => [...prev, ...res.posts]);
+    } catch {
+      // Silencieux.
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, posts.length, total, page, id]);
 
   const displayName = profile?.displayName || profile?.username || 'Utilisateur';
   const likesReceived = posts.reduce((sum, p) => sum + p.likesCount, 0);
@@ -97,7 +128,7 @@ export default function UserProfileScreen() {
           <View className="mt-5 flex-row justify-center gap-3">
             <StatPill
               icon="document-text-outline"
-              value={posts.length}
+              value={total}
               label="publications"
             />
             <StatPill icon="heart" value={likesReceived} label="j’aime" />
@@ -113,16 +144,33 @@ export default function UserProfileScreen() {
               </Text>
             </Card>
           ) : (
-            posts.map((post, index) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                index={index}
-                liked={likes.isLiked(post.id)}
-                likeCount={likes.countFor(post)}
-                onToggleLike={() => likes.toggle(post)}
-              />
-            ))
+            <>
+              {posts.map((post, index) => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  index={index}
+                  liked={likes.isLiked(post.id)}
+                  likeCount={likes.countFor(post)}
+                  onToggleLike={() => likes.toggle(post)}
+                />
+              ))}
+              {posts.length < total ? (
+                <Pressable
+                  onPress={() => void loadMore()}
+                  disabled={loadingMore}
+                  className="items-center py-3"
+                >
+                  {loadingMore ? (
+                    <ActivityIndicator />
+                  ) : (
+                    <Text className="text-sm font-medium text-primary">
+                      Charger plus
+                    </Text>
+                  )}
+                </Pressable>
+              ) : null}
+            </>
           )}
         </ScrollView>
       )}
