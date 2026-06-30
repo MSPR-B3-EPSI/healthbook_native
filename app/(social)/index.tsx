@@ -21,6 +21,7 @@ import {
 import { useAuth } from '@/features/auth/AuthProvider';
 import { deletePost, listPosts, type Post } from '@/features/publications/api';
 import PostCard from '@/features/publications/components/PostCard';
+import SortChip from '@/features/publications/components/SortChip';
 import { usePostLikes } from '@/features/publications/usePostLikes';
 import { HttpError } from '@/lib/http';
 
@@ -257,32 +258,5 @@ export default function FeedScreen() {
         ListEmptyComponent={renderEmpty}
       />
     </Screen>
-  );
-}
-
-function SortChip({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      className={`rounded-full border px-3 py-1.5 ${
-        active ? 'border-coral bg-coral/10' : 'border-border bg-surface'
-      }`}
-    >
-      <Text
-        className={`text-sm font-medium ${
-          active ? 'text-coral' : 'text-text-secondary'
-        }`}
-      >
-        {label}
-      </Text>
-    </Pressable>
   );
 }
