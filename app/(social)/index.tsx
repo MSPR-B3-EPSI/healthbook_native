@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
   RefreshControl,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import {
@@ -22,34 +24,87 @@ import PostCard from '@/features/publications/components/PostCard';
 import { usePostLikes } from '@/features/publications/usePostLikes';
 import { HttpError } from '@/lib/http';
 
+const PAGE_SIZE = 10;
+type Sort = 'recent' | 'popular';
+
 export default function FeedScreen() {
   const { user } = useAuth();
   const likes = usePostLikes();
+
   const [posts, setPosts] = useState<Post[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
+  const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [sort, setSort] = useState<Sort>('recent');
+
+  // Anti-rebond : on n'interroge l'API que 300 ms après la dernière frappe.
+  useEffect(() => {
+    const t = setTimeout(() => setAppliedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const sortBy = sort === 'popular' ? ('likes' as const) : ('createdAt' as const);
+
+  const reload = useCallback(async () => {
     setError(null);
     try {
-      const data = await listPosts();
-      setPosts(Array.isArray(data) ? data : []);
+      const res = await listPosts({
+        page: 1,
+        limit: PAGE_SIZE,
+        search: appliedSearch || undefined,
+        sortBy,
+        sortOrder: 'desc',
+      });
+      setTotal(res.total);
+      setPage(1);
+      setPosts(res.data);
     } catch (err) {
-      if (err instanceof HttpError) setError(`Erreur API (${err.status})`);
-      else setError('Impossible de joindre le serveur');
+      setError(
+        err instanceof HttpError
+          ? `Erreur API (${err.status})`
+          : 'Impossible de joindre le serveur',
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [appliedSearch, sortBy]);
 
+  // Recharge à l'arrivée sur l'écran, et quand la recherche/le tri changent
+  // (useFocusEffect relance l'effet si la callback change pendant qu'on est dessus).
   useFocusEffect(
     useCallback(() => {
-      void load();
-    }, [load]),
+      void reload();
+    }, [reload]),
   );
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || posts.length >= total) return;
+    setLoadingMore(true);
+    try {
+      const next = page + 1;
+      const res = await listPosts({
+        page: next,
+        limit: PAGE_SIZE,
+        search: appliedSearch || undefined,
+        sortBy,
+        sortOrder: 'desc',
+      });
+      setTotal(res.total);
+      setPage(next);
+      setPosts((prev) => [...prev, ...res.data]);
+    } catch {
+      // Silencieux : on ne casse pas le scroll pour une page en échec.
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, posts.length, total, page, appliedSearch, sortBy]);
 
   const handleDelete = useCallback(
     (post: Post) => {
@@ -63,11 +118,11 @@ export default function FeedScreen() {
               ? `Suppression impossible (${err.status}).`
               : 'Vérifie ta connexion.';
           Alert.alert('Oups', msg);
-          void load();
+          void reload();
         }
       })();
     },
-    [load],
+    [reload],
   );
 
   const renderEmpty = () => {
@@ -81,8 +136,6 @@ export default function FeedScreen() {
       );
     }
     if (error) {
-      // HealthBook indisponible : on garantit une sortie visible (réessayer OU
-      // basculer d'univers) pour ne jamais rester bloqué sur un écran en erreur.
       return (
         <View className="flex-1 items-center justify-center px-2">
           <Text className="mb-4 text-6xl">📡</Text>
@@ -96,7 +149,7 @@ export default function FeedScreen() {
           <View className="w-full max-w-xs">
             <Button
               label="Réessayer"
-              onPress={() => load(true)}
+              onPress={() => reload()}
               loading={refreshing}
             />
           </View>
@@ -116,9 +169,13 @@ export default function FeedScreen() {
     }
     return (
       <EmptyState
-        emoji="📭"
-        title="Aucune publication"
-        description="Sois le premier à partager quelque chose ! Touche « Publier » en bas pour commencer."
+        emoji={appliedSearch ? '🔎' : '📭'}
+        title={appliedSearch ? 'Aucun résultat' : 'Aucune publication'}
+        description={
+          appliedSearch
+            ? 'Essaie d’autres mots-clés.'
+            : 'Sois le premier à partager quelque chose ! Touche « Publier » en bas pour commencer.'
+        }
       />
     );
   };
@@ -129,6 +186,38 @@ export default function FeedScreen() {
         title="Fil d’actualité"
         subtitle={user?.username ? `Salut ${user.username} 👋` : undefined}
       />
+
+      <View className="mb-3 flex-row items-center rounded-xl bg-input px-3">
+        <Ionicons name="search" size={18} color="#9AA0A6" />
+        <TextInput
+          className="ml-2 flex-1 py-2.5 text-base text-text-primary"
+          placeholder="Rechercher une publication…"
+          placeholderTextColor="#9AA0A6"
+          value={search}
+          onChangeText={setSearch}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+        />
+        {search ? (
+          <Pressable onPress={() => setSearch('')} hitSlop={8}>
+            <Ionicons name="close-circle" size={18} color="#9AA0A6" />
+          </Pressable>
+        ) : null}
+      </View>
+
+      <View className="mb-3 flex-row gap-2">
+        <SortChip
+          label="Récents"
+          active={sort === 'recent'}
+          onPress={() => setSort('recent')}
+        />
+        <SortChip
+          label="Populaires"
+          active={sort === 'popular'}
+          onPress={() => setSort('popular')}
+        />
+      </View>
 
       <FlatList
         className="flex-1"
@@ -152,13 +241,48 @@ export default function FeedScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => load(true)}
+            onRefresh={() => {
+              setRefreshing(true);
+              void reload();
+            }}
             tintColor="#FC5200"
             colors={['#FC5200']}
           />
         }
+        onEndReached={() => void loadMore()}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={
+          loadingMore ? <ActivityIndicator className="py-4" /> : null
+        }
         ListEmptyComponent={renderEmpty}
       />
     </Screen>
+  );
+}
+
+function SortChip({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`rounded-full border px-3 py-1.5 ${
+        active ? 'border-coral bg-coral/10' : 'border-border bg-surface'
+      }`}
+    >
+      <Text
+        className={`text-sm font-medium ${
+          active ? 'text-coral' : 'text-text-secondary'
+        }`}
+      >
+        {label}
+      </Text>
+    </Pressable>
   );
 }

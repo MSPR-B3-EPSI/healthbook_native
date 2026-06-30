@@ -20,9 +20,34 @@ export type Paginated<T> = {
   limit: number;
 };
 
-export async function listPosts(): Promise<Post[]> {
-  const res = await apiFetch<Paginated<Post>>('/post');
-  return res.data;
+export type PostSortBy =
+  | 'createdAt'
+  | 'updatedAt'
+  | 'title'
+  | 'likes'
+  | 'comments';
+
+export type ListPostsOptions = {
+  search?: string;
+  authorId?: string;
+  sortBy?: PostSortBy;
+  sortOrder?: SortOrder;
+  page?: number;
+  limit?: number;
+};
+
+export async function listPosts(
+  opts: ListPostsOptions = {},
+): Promise<Paginated<Post>> {
+  const params = new URLSearchParams();
+  if (opts.search) params.set('search', opts.search);
+  if (opts.authorId) params.set('authorId', opts.authorId);
+  if (opts.sortBy) params.set('sortBy', opts.sortBy);
+  if (opts.sortOrder) params.set('sortOrder', opts.sortOrder);
+  if (opts.page) params.set('page', String(opts.page));
+  if (opts.limit) params.set('limit', String(opts.limit));
+  const qs = params.toString();
+  return apiFetch<Paginated<Post>>(qs ? `/post?${qs}` : '/post');
 }
 
 export type PostListResult = { posts: Post[]; total: number };
@@ -48,6 +73,13 @@ type CreatePostInput = {
 
 export async function createPost(input: CreatePostInput): Promise<Post> {
   return apiFetch<Post>('/post', { method: 'POST', body: input });
+}
+
+export async function updatePost(
+  id: string,
+  input: { title?: string; content?: string },
+): Promise<Post> {
+  return apiFetch<Post>(`/post/${id}`, { method: 'PATCH', body: input });
 }
 
 /** Attache (ou remplace) le média d'un post via upload multipart. */

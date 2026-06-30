@@ -78,6 +78,10 @@ export default function AppTabsLayout() {
         options={{ href: null, tabBarStyle: { display: 'none' } }}
       />
       <Tabs.Screen
+        name="edit-post/[id]"
+        options={{ href: null, tabBarStyle: { display: 'none' } }}
+      />
+      <Tabs.Screen
         name="profile/edit"
         options={{ href: null, tabBarStyle: { display: 'none' } }}
       />

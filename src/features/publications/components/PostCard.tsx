@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, type AlertButton, Pressable, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Avatar, Card, IconButton } from '@/components';
 import { profileLabel, useUser } from '@/features/users/useUser';
@@ -45,11 +45,23 @@ export default function PostCard({
   // transparents dans l'URL → marche que le groupe s'appelle (app) ou (social).
   const openDetail = () => router.push(`/post/${post.id}`);
 
-  const confirmDelete = () => {
-    Alert.alert('Supprimer', 'Supprimer cette publication ?', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: onDelete },
-    ]);
+  const openMenu = () => {
+    const options: AlertButton[] = [
+      { text: 'Modifier', onPress: () => router.push(`/edit-post/${post.id}`) },
+    ];
+    if (onDelete) {
+      options.push({
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert('Supprimer', 'Supprimer cette publication ?', [
+            { text: 'Annuler', style: 'cancel' },
+            { text: 'Supprimer', style: 'destructive', onPress: onDelete },
+          ]),
+      });
+    }
+    options.push({ text: 'Annuler', style: 'cancel' });
+    Alert.alert('Publication', undefined, options);
   };
 
   const body = (
@@ -74,10 +86,10 @@ export default function PostCard({
             </Text>
           </View>
         </Pressable>
-        {isMine && onDelete ? (
+        {isMine ? (
           <IconButton
             name="ellipsis-horizontal"
-            onPress={confirmDelete}
+            onPress={openMenu}
             accessibilityLabel="Options de la publication"
           />
         ) : null}
