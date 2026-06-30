@@ -149,10 +149,17 @@ export default function PostDetailScreen() {
         id: tempId,
         postId: id,
         authorId: user?.sub ?? 'me',
+        author: {
+          keycloakId: user?.sub ?? 'me',
+          username: user?.username ?? null,
+          displayName: null,
+          profilePictureUrl: null,
+        },
         content,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         likesCount: 0,
+        likedByMe: false,
       };
       setComments((prev) => [optimistic, ...prev]);
       setCommentTotal((t) => t + 1);
@@ -180,7 +187,7 @@ export default function PostDetailScreen() {
         }
       })();
     },
-    [id, user?.sub],
+    [id, user?.sub, user?.username],
   );
 
   const removeComment = useCallback(
@@ -274,7 +281,7 @@ export default function PostDetailScreen() {
                   post={post}
                   expanded
                   isMine={post.authorId === user?.sub}
-                  liked={likes.isLiked(post.id)}
+                  liked={likes.isLiked(post)}
                   likeCount={likes.countFor(post)}
                   onToggleLike={() => likes.toggle(post)}
                   onComment={() => {}}
@@ -331,7 +338,7 @@ export default function PostDetailScreen() {
                       key={c.id}
                       comment={c}
                       isMine={c.authorId === user?.sub}
-                      liked={commentLikes.isLiked(c.id)}
+                      liked={commentLikes.isLiked(c)}
                       likeCount={commentLikes.countFor(c)}
                       onToggleLike={() => commentLikes.toggle(c)}
                       onDelete={() => removeComment(c)}

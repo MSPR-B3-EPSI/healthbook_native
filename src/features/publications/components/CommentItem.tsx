@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { Avatar } from '@/components';
-import { profileLabel, useUser } from '@/features/users/useUser';
 import { formatRelativeTime } from '@/lib/relativeTime';
 import type { Comment } from '../api';
 import LikeButton from './LikeButton';
@@ -28,8 +27,9 @@ export default function CommentItem({
   onUpdate,
 }: CommentItemProps) {
   const router = useRouter();
-  const author = useUser(comment.authorId);
-  const label = profileLabel(author, isMine ? 'Toi' : 'Membre Healthbook');
+  const author = comment.author;
+  const label =
+    author.displayName || author.username || (isMine ? 'Toi' : 'Membre Healthbook');
   const openAuthor = () => router.push(`/user/${comment.authorId}`);
 
   const [editing, setEditing] = useState(false);
@@ -51,7 +51,7 @@ export default function CommentItem({
       <Pressable onPress={openAuthor} hitSlop={4}>
         <Avatar
           size={32}
-          uri={author?.profilePictureUrl ?? undefined}
+          uri={author.profilePictureUrl ?? undefined}
           name={label}
         />
       </Pressable>

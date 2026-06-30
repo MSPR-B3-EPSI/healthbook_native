@@ -150,7 +150,7 @@ export default function UserProfileScreen() {
                   key={post.id}
                   post={post}
                   index={index}
-                  liked={likes.isLiked(post.id)}
+                  liked={likes.isLiked(post)}
                   likeCount={likes.countFor(post)}
                   onToggleLike={() => likes.toggle(post)}
                 />

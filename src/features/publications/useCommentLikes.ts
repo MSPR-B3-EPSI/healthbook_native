@@ -3,15 +3,19 @@ import { Alert } from 'react-native';
 import { HttpError } from '@/lib/http';
 import { toggleCommentLike, type Comment } from './api';
 
-// Même principe que usePostLikes : l'API ne renvoie pas `likedByMe`, on suit
-// l'état liké en local (par session) ; le compteur devient la vérité serveur.
+// Même principe que usePostLikes : l'état liké part de `comment.likedByMe`.
 export function useCommentLikes() {
-  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [likedOverrides, setLikedOverrides] = useState<
+    Record<string, boolean>
+  >({});
   const [countOverrides, setCountOverrides] = useState<Record<string, number>>(
     {},
   );
 
-  const isLiked = useCallback((id: string) => likedIds.has(id), [likedIds]);
+  const isLiked = useCallback(
+    (comment: Comment) => likedOverrides[comment.id] ?? comment.likedByMe,
+    [likedOverrides],
+  );
 
   const countFor = useCallback(
     (comment: Comment) => countOverrides[comment.id] ?? comment.likesCount,
@@ -20,15 +24,10 @@ export function useCommentLikes() {
 
   const toggle = useCallback(
     (comment: Comment) => {
-      const wasLiked = likedIds.has(comment.id);
+      const wasLiked = likedOverrides[comment.id] ?? comment.likedByMe;
       const baseCount = countOverrides[comment.id] ?? comment.likesCount;
 
-      setLikedIds((prev) => {
-        const next = new Set(prev);
-        if (wasLiked) next.delete(comment.id);
-        else next.add(comment.id);
-        return next;
-      });
+      setLikedOverrides((prev) => ({ ...prev, [comment.id]: !wasLiked }));
       setCountOverrides((prev) => ({
         ...prev,
         [comment.id]: Math.max(0, baseCount + (wasLiked ? -1 : 1)),
@@ -37,23 +36,13 @@ export function useCommentLikes() {
       void (async () => {
         try {
           const res = await toggleCommentLike(comment.id);
-          setLikedIds((prev) => {
-            const next = new Set(prev);
-            if (res.liked) next.add(comment.id);
-            else next.delete(comment.id);
-            return next;
-          });
+          setLikedOverrides((prev) => ({ ...prev, [comment.id]: res.liked }));
           setCountOverrides((prev) => ({
             ...prev,
             [comment.id]: res.likesCount,
           }));
         } catch (err) {
-          setLikedIds((prev) => {
-            const next = new Set(prev);
-            if (wasLiked) next.add(comment.id);
-            else next.delete(comment.id);
-            return next;
-          });
+          setLikedOverrides((prev) => ({ ...prev, [comment.id]: wasLiked }));
           setCountOverrides((prev) => ({ ...prev, [comment.id]: baseCount }));
           const msg =
             err instanceof HttpError
@@ -63,7 +52,7 @@ export function useCommentLikes() {
         }
       })();
     },
-    [likedIds, countOverrides],
+    [likedOverrides, countOverrides],
   );
 
   return { isLiked, countFor, toggle };

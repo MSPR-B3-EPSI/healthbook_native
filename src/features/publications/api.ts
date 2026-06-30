@@ -1,16 +1,26 @@
 import { apiFetch } from '@/lib/http';
 import { fileFormData, type MediaFile } from '@/lib/upload';
 
+// Auteur minimal embarqué dans les réponses post/commentaire (évite les appels N+1).
+export type Author = {
+  keycloakId: string;
+  username: string | null;
+  displayName: string | null;
+  profilePictureUrl: string | null;
+};
+
 export type Post = {
   id: string;
   title: string;
   content: string;
   mediaUrl: string | null;
   authorId: string;
+  author: Author;
   createdAt: string;
   updatedAt: string;
   likesCount: number;
   commentsCount: number;
+  likedByMe: boolean;
 };
 
 export type Paginated<T> = {
@@ -116,9 +126,11 @@ export type Comment = {
   postId: string;
   content: string;
   authorId: string;
+  author: Author;
   createdAt: string;
   updatedAt: string;
   likesCount: number;
+  likedByMe: boolean;
 };
 
 export type CommentSortBy = 'createdAt' | 'updatedAt' | 'likes';

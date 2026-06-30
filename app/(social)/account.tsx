@@ -178,7 +178,7 @@ export default function AccountScreen() {
                 post={post}
                 index={index}
                 isMine
-                liked={likes.isLiked(post.id)}
+                liked={likes.isLiked(post)}
                 likeCount={likes.countFor(post)}
                 onToggleLike={() => likes.toggle(post)}
                 onDelete={() => handleDelete(post)}

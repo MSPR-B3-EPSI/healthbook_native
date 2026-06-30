@@ -229,7 +229,7 @@ export default function FeedScreen() {
             post={item}
             index={index}
             isMine={item.authorId === user?.sub}
-            liked={likes.isLiked(item.id)}
+            liked={likes.isLiked(item)}
             likeCount={likes.countFor(item)}
             onToggleLike={() => likes.toggle(item)}
             onDelete={

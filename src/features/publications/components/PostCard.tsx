@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { Alert, type AlertButton, Pressable, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Avatar, Card, IconButton } from '@/components';
-import { profileLabel, useUser } from '@/features/users/useUser';
 import { formatRelativeTime } from '@/lib/relativeTime';
 import { cardShadow } from '@/lib/shadows';
 import type { Post } from '../api';
@@ -37,8 +36,9 @@ export default function PostCard({
 }: PostCardProps) {
   const router = useRouter();
   const [mediaFailed, setMediaFailed] = useState(false);
-  const author = useUser(post.authorId);
-  const authorLabel = profileLabel(author, isMine ? 'Toi' : 'Membre Healthbook');
+  const author = post.author;
+  const authorLabel =
+    author.displayName || author.username || (isMine ? 'Toi' : 'Membre Healthbook');
   const openAuthor = () => router.push(`/user/${post.authorId}`);
 
   // Chemin agnostique au groupe de routes : les groupes (parenthèses) sont
@@ -74,7 +74,7 @@ export default function PostCard({
         >
           <Avatar
             size={40}
-            uri={author?.profilePictureUrl ?? undefined}
+            uri={author.profilePictureUrl ?? undefined}
             name={authorLabel}
           />
           <View className="ml-3 flex-1">
