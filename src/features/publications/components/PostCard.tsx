@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, type AlertButton, Pressable, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Avatar, Card, IconButton } from '@/components';
 import { formatRelativeTime } from '@/lib/relativeTime';
@@ -36,33 +36,60 @@ export default function PostCard({
 }: PostCardProps) {
   const router = useRouter();
   const [mediaFailed, setMediaFailed] = useState(false);
-  const authorLabel = isMine ? 'Toi' : 'Membre Healthbook';
+  const author = post.author;
+  const authorLabel =
+    author.displayName || author.username || (isMine ? 'Toi' : 'Membre Healthbook');
+  const openAuthor = () => router.push(`/user/${post.authorId}`);
 
   // Chemin agnostique au groupe de routes : les groupes (parenthèses) sont
   // transparents dans l'URL → marche que le groupe s'appelle (app) ou (social).
   const openDetail = () => router.push(`/post/${post.id}`);
 
-  const confirmDelete = () => {
-    Alert.alert('Supprimer', 'Supprimer cette publication ?', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: onDelete },
-    ]);
+  const openMenu = () => {
+    const options: AlertButton[] = [
+      { text: 'Modifier', onPress: () => router.push(`/edit-post/${post.id}`) },
+    ];
+    if (onDelete) {
+      options.push({
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert('Supprimer', 'Supprimer cette publication ?', [
+            { text: 'Annuler', style: 'cancel' },
+            { text: 'Supprimer', style: 'destructive', onPress: onDelete },
+          ]),
+      });
+    }
+    options.push({ text: 'Annuler', style: 'cancel' });
+    Alert.alert('Publication', undefined, options);
   };
 
   const body = (
     <Card className="mb-3" style={cardShadow}>
       <View className="flex-row items-center">
-        <Avatar size={40} name={authorLabel} />
-        <View className="ml-3 flex-1">
-          <Text className="font-semibold text-text-primary">{authorLabel}</Text>
-          <Text className="text-xs text-text-muted">
-            {formatRelativeTime(post.createdAt)}
-          </Text>
-        </View>
-        {isMine && onDelete ? (
+        <Pressable
+          onPress={openAuthor}
+          hitSlop={4}
+          className="flex-1 flex-row items-center"
+        >
+          <Avatar
+            size={40}
+            uri={author.profilePictureUrl ?? undefined}
+            name={authorLabel}
+          />
+          <View className="ml-3 flex-1">
+            <Text className="font-semibold text-text-primary">
+              {authorLabel}
+            </Text>
+            <Text className="text-xs text-text-muted">
+              {formatRelativeTime(post.createdAt)}
+            </Text>
+          </View>
+        </Pressable>
+        {isMine ? (
           <IconButton
             name="ellipsis-horizontal"
-            onPress={confirmDelete}
+            onPress={openMenu}
             accessibilityLabel="Options de la publication"
           />
         ) : null}

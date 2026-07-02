@@ -3,15 +3,20 @@ import { Alert } from 'react-native';
 import { HttpError } from '@/lib/http';
 import { toggleLike, type Post } from './api';
 
-// L'API GET /post ne renvoie pas `likedByMe` → on suit l'état liké en local (par
-// session). Les compteurs, eux, deviennent la vérité serveur après chaque toggle.
+// L'état liké part de `post.likedByMe` (vérité serveur, persistante) ; les
+// overrides ne couvrent que les bascules faites pendant la session.
 export function usePostLikes() {
-  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [likedOverrides, setLikedOverrides] = useState<
+    Record<string, boolean>
+  >({});
   const [countOverrides, setCountOverrides] = useState<Record<string, number>>(
     {},
   );
 
-  const isLiked = useCallback((id: string) => likedIds.has(id), [likedIds]);
+  const isLiked = useCallback(
+    (post: Post) => likedOverrides[post.id] ?? post.likedByMe,
+    [likedOverrides],
+  );
 
   const countFor = useCallback(
     (post: Post) => countOverrides[post.id] ?? post.likesCount,
@@ -20,16 +25,11 @@ export function usePostLikes() {
 
   const toggle = useCallback(
     (post: Post) => {
-      const wasLiked = likedIds.has(post.id);
+      const wasLiked = likedOverrides[post.id] ?? post.likedByMe;
       const baseCount = countOverrides[post.id] ?? post.likesCount;
 
       // Optimiste.
-      setLikedIds((prev) => {
-        const next = new Set(prev);
-        if (wasLiked) next.delete(post.id);
-        else next.add(post.id);
-        return next;
-      });
+      setLikedOverrides((prev) => ({ ...prev, [post.id]: !wasLiked }));
       setCountOverrides((prev) => ({
         ...prev,
         [post.id]: Math.max(0, baseCount + (wasLiked ? -1 : 1)),
@@ -38,22 +38,14 @@ export function usePostLikes() {
       void (async () => {
         try {
           const res = await toggleLike(post.id);
-          // Source de vérité serveur.
-          setLikedIds((prev) => {
-            const next = new Set(prev);
-            if (res.liked) next.add(post.id);
-            else next.delete(post.id);
-            return next;
-          });
-          setCountOverrides((prev) => ({ ...prev, [post.id]: res.likesCount }));
+          setLikedOverrides((prev) => ({ ...prev, [post.id]: res.liked }));
+          setCountOverrides((prev) => ({
+            ...prev,
+            [post.id]: res.likesCount,
+          }));
         } catch (err) {
           // Rollback.
-          setLikedIds((prev) => {
-            const next = new Set(prev);
-            if (wasLiked) next.add(post.id);
-            else next.delete(post.id);
-            return next;
-          });
+          setLikedOverrides((prev) => ({ ...prev, [post.id]: wasLiked }));
           setCountOverrides((prev) => ({ ...prev, [post.id]: baseCount }));
           const msg =
             err instanceof HttpError
@@ -63,7 +55,7 @@ export function usePostLikes() {
         }
       })();
     },
-    [likedIds, countOverrides],
+    [likedOverrides, countOverrides],
   );
 
   return { isLiked, countFor, toggle };

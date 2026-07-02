@@ -1,23 +1,28 @@
+import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   Text,
   TextInput,
+  View,
 } from 'react-native';
 import { Button, Screen, ScreenHeader, TextField } from '@/components';
-import { createPost } from '@/features/publications/api';
+import { createPost, uploadPostMedia } from '@/features/publications/api';
 import {
   createPostSchema,
   type CreatePostValues,
 } from '@/features/publications/schemas';
 import { HttpError } from '@/lib/http';
+import { pickImageFromLibrary, takePhoto } from '@/lib/imagePicker';
+import type { MediaFile } from '@/lib/upload';
 
 function MediaPreview({ uri }: { uri: string }) {
   const [failed, setFailed] = useState(false);
@@ -35,7 +40,7 @@ function MediaPreview({ uri }: { uri: string }) {
         width: '100%',
         aspectRatio: 16 / 9,
         borderRadius: 12,
-        marginBottom: 16,
+        marginBottom: 12,
       }}
       contentFit="cover"
       transition={200}
@@ -47,6 +52,7 @@ function MediaPreview({ uri }: { uri: string }) {
 export default function CreateScreen() {
   const contentRef = useRef<TextInput>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [image, setImage] = useState<MediaFile | null>(null);
 
   const {
     control,
@@ -55,24 +61,53 @@ export default function CreateScreen() {
     formState: { errors, isSubmitting },
   } = useForm<CreatePostValues>({
     resolver: zodResolver(createPostSchema),
-    defaultValues: { title: '', content: '', mediaUrl: '' },
+    defaultValues: { title: '', content: '' },
     mode: 'onTouched',
   });
+
+  const chooseFrom = async (pick: () => Promise<MediaFile | null>) => {
+    const file = await pick();
+    if (file) setImage(file);
+  };
+
+  const pickImage = () => {
+    Alert.alert('Ajouter une image', undefined, [
+      { text: 'Galerie', onPress: () => void chooseFrom(pickImageFromLibrary) },
+      { text: 'Caméra', onPress: () => void chooseFrom(takePhoto) },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
+  };
 
   const onSubmit = async (values: CreatePostValues) => {
     setFormError(null);
 
     try {
-      const media = values.mediaUrl?.trim();
-      await createPost({
+      const post = await createPost({
         title: values.title.trim(),
         content: values.content.trim(),
-        ...(media ? { mediaUrl: media } : {}),
       });
+
+      if (image) {
+        try {
+          await uploadPostMedia(post.id, image);
+        } catch {
+          // Post créé mais image refusée (taille/format) : on ne bloque pas.
+          reset();
+          setImage(null);
+          Alert.alert(
+            'Publié sans image',
+            "Le post est en ligne, mais l’image n’a pas pu être envoyée.",
+          );
+          router.replace('/(social)');
+          return;
+        }
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
         () => {},
       );
       reset();
+      setImage(null);
       Alert.alert('Publication créée', 'Ton post est en ligne 🎉');
       router.replace('/(social)');
     } catch (err) {
@@ -149,34 +184,34 @@ export default function CreateScreen() {
           )}
         />
 
-        <Controller
-          control={control}
-          name="mediaUrl"
-          render={({ field: { onChange, onBlur, value } }) => {
-            const v = value ?? '';
-            return (
-              <>
-                <TextField
-                  label="Image (URL, optionnel)"
-                  placeholder="https://…"
-                  value={v}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  error={errors.mediaUrl?.message}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="url"
-                />
-                {v.trim().startsWith('http') ? (
-                  <MediaPreview key={v.trim()} uri={v.trim()} />
-                ) : null}
-              </>
-            );
-          }}
-        />
+        {image ? (
+          <>
+            <MediaPreview key={image.uri} uri={image.uri} />
+            <View className="mb-4 flex-row">
+              <Pressable onPress={pickImage} className="mr-5" hitSlop={6}>
+                <Text className="text-sm font-medium text-primary">Changer</Text>
+              </Pressable>
+              <Pressable onPress={() => setImage(null)} hitSlop={6}>
+                <Text className="text-sm font-medium text-text-secondary">
+                  Retirer
+                </Text>
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          <Pressable
+            onPress={pickImage}
+            className="mb-4 flex-row items-center justify-center rounded-xl border border-dashed border-border bg-surface py-4"
+          >
+            <Ionicons name="image-outline" size={20} color="#6B6B6B" />
+            <Text className="ml-2 text-sm font-medium text-text-secondary">
+              Ajouter une image (optionnel)
+            </Text>
+          </Pressable>
+        )}
 
         {formError ? (
-          <Text className="text-sm text-danger mb-2">{formError}</Text>
+          <Text className="mb-2 text-sm text-danger">{formError}</Text>
         ) : null}
 
         <Button
